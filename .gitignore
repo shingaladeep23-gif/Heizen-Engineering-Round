@@ -1,0 +1,13 @@
+# Personal prep docs stay local - only code and READMEs go to Git
+*.pdf
+*.md
+!README.md
+
+node_modules/
+dist/
+.next/
+coverage/
+*.tsbuildinfo
+next-env.d.ts
+.env
+.vercel
