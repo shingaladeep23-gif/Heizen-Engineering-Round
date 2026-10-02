@@ -1,10 +1,11 @@
 import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common';
 import bcrypt from 'bcryptjs';
-import { PrismaService } from './prisma.service.js';
+import { PrismaService } from '../prisma.service.js';
+import { seedCatalogue } from './catalogue-seed.js';
 
-// The live app must always have the reviewers' test accounts (spec section 2).
-// Runs on every start and only creates what's missing, so it never undoes
-// changes made through the app.
+// The live app must always have the reviewers' test accounts and realistic
+// data (spec section 2). Runs on every start and only fills in what's
+// missing, so it never undoes changes made through the app.
 const TEST_ACCOUNTS = [
   { email: 'admin@test.com', name: 'Asha Admin', role: 'ADMIN' },
   { email: 'kitchen@test.com', name: 'Karan Kitchen', role: 'KITCHEN' },
@@ -29,6 +30,12 @@ export class DemoDataService implements OnApplicationBootstrap {
         update: {},
       });
     }
-    this.log.log('Test accounts and settings are in place');
+
+    if ((await this.db.dish.count()) === 0) {
+      const driver = await this.db.user.findUniqueOrThrow({ where: { email: 'driver@test.com' } });
+      await seedCatalogue(this.db, driver.id);
+      this.log.log('Seeded the demo catalogue, companies and employees');
+    }
+    this.log.log('Demo data is in place');
   }
 }
