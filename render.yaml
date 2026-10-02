@@ -1,0 +1,17 @@
+# Render blueprint for the API. Render reads this when you create a "Blueprint".
+services:
+  - type: web
+    name: fernleaf-api
+    runtime: node
+    plan: free
+    region: singapore
+    buildCommand: npm ci && npm run build -w @fernleaf/shared && npm run build -w api
+    startCommand: npm run start:prod -w api # runs pending migrations, then starts
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: '22'
+      - key: DATABASE_URL
+        sync: false # pasted by hand in the Render dashboard (Neon connection string)
+      - key: JWT_SECRET
+        generateValue: true
