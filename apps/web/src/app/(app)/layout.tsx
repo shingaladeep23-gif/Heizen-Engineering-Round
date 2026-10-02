@@ -14,6 +14,12 @@ import { api, useMe } from '@/lib/api';
 // The API checks every request on its own.
 const NAV: { href: string; label: string; permission?: Permission }[] = [
   { href: '/dashboard', label: 'Dashboard' },
+  { href: '/dishes', label: 'Dishes', permission: 'catalogue.view' },
+  { href: '/options', label: 'Options', permission: 'catalogue.view' },
+  { href: '/menu', label: 'Menu', permission: 'catalogue.view' },
+  { href: '/preview', label: 'Menu preview', permission: 'companies.view' },
+  { href: '/tiers', label: 'Price tiers', permission: 'catalogue.view' },
+  { href: '/lists', label: 'Reference lists', permission: 'catalogue.view' },
   { href: '/staff', label: 'Staff', permission: 'staff.manage' },
 ];
 
@@ -91,7 +97,7 @@ export default function SignedInLayout({ children }: { children: ReactNode }) {
               component={Link}
               href={item.href}
               label={item.label}
-              active={pathname.startsWith(item.href)}
+              active={pathname === item.href || pathname.startsWith(`${item.href}/`)}
               onClick={close}
             />
           ),
