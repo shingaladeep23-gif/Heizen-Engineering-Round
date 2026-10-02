@@ -22,6 +22,16 @@ for (const account of ACCOUNTS) {
   });
 }
 
+test('if signing out fails, the user is told instead of nothing happening', async ({
+  page,
+}) => {
+  await signIn(page, 'admin@test.com');
+  await page.route('**/api/auth/logout', (route) => route.abort());
+  await page.getByRole('button', { name: 'Sign out' }).click();
+  await expect(page.getByText(/Couldn't sign out/)).toBeVisible();
+  await expect(page).toHaveURL(/\/dashboard/);
+});
+
 test('a wrong password is rejected with a clear message', async ({ page }) => {
   await page.goto('/login');
   await page.getByLabel('Email').fill('admin@test.com');

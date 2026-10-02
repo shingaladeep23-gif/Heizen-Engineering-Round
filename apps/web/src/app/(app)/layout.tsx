@@ -12,7 +12,8 @@ import {
   Text,
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
-import { useQueryClient } from '@tanstack/react-query';
+import { notifications } from '@mantine/notifications';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, type ReactNode } from 'react';
@@ -32,6 +33,21 @@ export default function SignedInLayout({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
   const [menuOpen, { toggle, close }] = useDisclosure();
 
+  // The cookie is httpOnly, so only the API can clear it. If that call fails
+  // we say so, rather than pretending you're signed out.
+  const signOut = useMutation({
+    mutationFn: () => api('/auth/logout', { method: 'POST' }),
+    onSuccess: () => {
+      queryClient.clear();
+      router.replace('/login');
+    },
+    onError: (error) =>
+      notifications.show({
+        color: 'red',
+        message: `Couldn't sign out: ${error.message}`,
+      }),
+  });
+
   useEffect(() => {
     if (me.error) router.replace('/login');
   }, [me.error, router]);
@@ -43,12 +59,6 @@ export default function SignedInLayout({ children }: { children: ReactNode }) {
       </Center>
     );
   }
-
-  const signOut = async () => {
-    await api('/auth/logout', { method: 'POST' });
-    queryClient.clear();
-    router.replace('/login');
-  };
 
   return (
     <AppShell
@@ -75,7 +85,12 @@ export default function SignedInLayout({ children }: { children: ReactNode }) {
             <Text size="sm" c="dimmed" visibleFrom="xs">
               {me.data.name}
             </Text>
-            <Button variant="subtle" size="xs" onClick={signOut}>
+            <Button
+              variant="subtle"
+              size="xs"
+              loading={signOut.isPending}
+              onClick={() => signOut.mutate()}
+            >
               Sign out
             </Button>
           </Group>
