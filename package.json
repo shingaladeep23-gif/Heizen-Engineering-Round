@@ -11,7 +11,9 @@
     "build": "npm run build --workspaces",
     "lint": "npm run lint --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present",
-    "test": "npm test --workspaces --if-present"
+    "test": "npm test --workspaces --if-present",
+    "test:e2e": "npm run test:e2e -w web",
+    "check": "npm run lint && npm run typecheck && npm test && npm run test:e2e"
   },
   "allowScripts": {
     "@prisma/client@6.19.3": true,
