@@ -1,0 +1,404 @@
+// Fernleaf Kitchen data model.
+// Money is always an Int in paise (₹1 = 100). Dates are IST calendar dates,
+// times are "HH:mm" strings in IST.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------- Staff & settings ----------
+
+enum Role {
+  ADMIN
+  KITCHEN
+  DISPATCH
+  DRIVER
+}
+
+model User {
+  id           Int     @id @default(autoincrement())
+  email        String  @unique
+  name         String
+  passwordHash String
+  role         Role
+  active       Boolean @default(true)
+
+  defaultDriverFor Company[] @relation("DefaultDriver")
+  deliveries       Order[]   @relation("Driver")
+}
+
+// Single row (id = 1). Platform-wide values staff can change without code.
+model Settings {
+  id                   Int        @id @default(1)
+  kitchenWorkingDays   Int[]      @default([1, 2, 3, 4, 5]) // ISO weekdays, 1 = Mon
+  cutoffTime           String     @default("16:00")
+  cutoffDays           Int        @default(2) // kitchen working days before delivery
+  kitchenBufferMinutes Int        @default(30) // kitchen-ready = dispatch-ready minus this
+  atRiskMinutes        Int        @default(30)
+  onTimeGraceMinutes   Int        @default(10)
+  defaultTierId        Int?
+  defaultTier          PriceTier? @relation(fields: [defaultTierId], references: [id])
+}
+
+model KitchenHoliday {
+  date DateTime @id @db.Date
+  name String
+}
+
+// ---------- Reference data (admin-managed lists) ----------
+
+model Allergen {
+  id        Int        @id @default(autoincrement())
+  name      String     @unique
+  dishes    Dish[]
+  options   Option[]
+  employees Employee[]
+}
+
+model DietaryTag {
+  id        Int        @id @default(autoincrement())
+  name      String     @unique
+  dishes    Dish[]
+  options   Option[]
+  employees Employee[]
+}
+
+model Station {
+  id     Int    @id @default(autoincrement())
+  name   String @unique
+  dishes Dish[]
+}
+
+model PackagingType {
+  id        Int       @id @default(autoincrement())
+  name      String    @unique
+  companies Company[]
+  orders    Order[]
+}
+
+// ---------- Catalogue ----------
+
+enum Temperature {
+  HOT
+  COLD
+}
+
+model Dish {
+  id          Int         @id @default(autoincrement())
+  sku         String      @unique
+  name        String
+  description String      @default("")
+  imageUrl    String?
+  temperature Temperature
+  costPrice   Int
+  minOrderQty Int?
+  active      Boolean     @default(true) // never hard-deleted, old orders point here
+  stationId   Int?
+  station     Station?    @relation(fields: [stationId], references: [id])
+
+  allergens    Allergen[]
+  dietaryTags  DietaryTag[]
+  optionGroups OptionGroup[]
+  prices       DishPrice[]
+  menuItems    MenuItem[]
+  orderLines   OrderLine[]
+}
+
+model Option {
+  id          Int                 @id @default(autoincrement())
+  name        String              @unique
+  costPrice   Int
+  active      Boolean             @default(true)
+  allergens   Allergen[]
+  dietaryTags DietaryTag[]
+  prices      OptionPrice[]
+  groups      OptionGroupOption[]
+}
+
+model OptionGroup {
+  id         Int     @id @default(autoincrement())
+  dishId     Int
+  dish       Dish    @relation(fields: [dishId], references: [id], onDelete: Cascade)
+  name       String
+  required   Boolean @default(false)
+  maxChoices Int     @default(1)
+  position   Int
+
+  options OptionGroupOption[]
+}
+
+model OptionGroupOption {
+  groupId  Int
+  optionId Int
+  position Int
+  group    OptionGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  option   Option      @relation(fields: [optionId], references: [id])
+
+  @@id([groupId, optionId])
+}
+
+// ---------- Pricing ----------
+
+enum PriceBase {
+  COST
+  TIER
+}
+
+// A tier is either typed in (base = null) or derived: price = base x factor,
+// rounded up to 5 paise. Rows in DishPrice/OptionPrice are the typed prices,
+// which on a derived tier act as overrides.
+model PriceTier {
+  id         Int        @id @default(autoincrement())
+  name       String     @unique
+  base       PriceBase?
+  baseTierId Int?
+  baseTier   PriceTier? @relation("DerivedFrom", fields: [baseTierId], references: [id])
+  factor     Decimal?   @db.Decimal(8, 4)
+
+  derivedTiers PriceTier[]   @relation("DerivedFrom")
+  dishPrices   DishPrice[]
+  optionPrices OptionPrice[]
+  companies    Company[]
+  defaultFor   Settings[]
+}
+
+model DishPrice {
+  tierId Int
+  dishId Int
+  price  Int
+  tier   PriceTier @relation(fields: [tierId], references: [id], onDelete: Cascade)
+  dish   Dish      @relation(fields: [dishId], references: [id])
+
+  @@id([tierId, dishId])
+}
+
+model OptionPrice {
+  tierId   Int
+  optionId Int
+  price    Int
+  tier     PriceTier @relation(fields: [tierId], references: [id], onDelete: Cascade)
+  option   Option    @relation(fields: [optionId], references: [id])
+
+  @@id([tierId, optionId])
+}
+
+// ---------- Menu ----------
+
+model MenuCategory {
+  id        Int        @id @default(autoincrement())
+  name      String
+  position  Int
+  active    Boolean    @default(true)
+  secret    Boolean    @default(false) // not listed, but can still be opened
+  items     MenuItem[]
+  hiddenFor Company[]  @relation("HiddenCategories")
+}
+
+model MenuItem {
+  id         Int          @id @default(autoincrement())
+  categoryId Int
+  dishId     Int
+  position   Int
+  active     Boolean      @default(true)
+  category   MenuCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  dish       Dish         @relation(fields: [dishId], references: [id])
+  hiddenFor  Company[]    @relation("HiddenItems")
+
+  @@unique([categoryId, dishId])
+}
+
+// ---------- Companies & employees ----------
+
+model Company {
+  id                  Int            @id @default(autoincrement())
+  name                String
+  billingName         String
+  billingEmail        String
+  billingPhone        String?
+  ownerId             Int?           @unique
+  owner               Employee?      @relation("Owner", fields: [ownerId], references: [id])
+  workingDays         Int[]          @default([1, 2, 3, 4, 5])
+  deliveryTime        String         @default("12:30")
+  dispatchLeadMinutes Int            @default(60) // order must leave the kitchen this long before delivery
+  driverInstructions  String         @default("")
+  defaultAddressId    Int?           @unique
+  defaultAddress      Address?       @relation("DefaultAddress", fields: [defaultAddressId], references: [id])
+  packagingTypeId     Int?
+  packagingType       PackagingType? @relation(fields: [packagingTypeId], references: [id])
+  defaultDriverId     Int?
+  defaultDriver       User?          @relation("DefaultDriver", fields: [defaultDriverId], references: [id])
+  priceTierId         Int? // null = default tier
+  priceTier           PriceTier?     @relation(fields: [priceTierId], references: [id])
+
+  domains          CompanyDomain[]
+  addresses        Address[]
+  holidays         CompanyHoliday[]
+  employees        Employee[]
+  orders           Order[]
+  invoices         Invoice[]
+  hiddenCategories MenuCategory[]   @relation("HiddenCategories")
+  hiddenItems      MenuItem[]       @relation("HiddenItems")
+}
+
+model CompanyDomain {
+  domain    String  @id // unique across all companies
+  companyId Int
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+}
+
+model Address {
+  id        Int     @id @default(autoincrement())
+  companyId Int
+  company   Company @relation(fields: [companyId], references: [id])
+  label     String // "HQ, 4th floor"
+  text      String // full street address
+
+  defaultFor Company? @relation("DefaultAddress")
+  orders     Order[]
+}
+
+model CompanyHoliday {
+  companyId Int
+  date      DateTime @db.Date
+  name      String
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@id([companyId, date])
+}
+
+model Employee {
+  id                 Int     @id @default(autoincrement())
+  companyId          Int
+  company            Company @relation(fields: [companyId], references: [id])
+  name               String
+  email              String  @unique
+  canChooseAddress   Boolean @default(false)
+  canChangeTime      Boolean @default(false)
+  canChangePackaging Boolean @default(false)
+
+  allergies    Allergen[]
+  dietaryPrefs DietaryTag[]
+  orders       Order[]
+  ownerOf      Company?     @relation("Owner")
+}
+
+// ---------- Orders ----------
+
+enum OrderStatus {
+  DRAFT
+  PLACED
+  CONFIRMED
+  DELIVERED
+  CANCELLED
+  REJECTED
+}
+
+// The order's timeline is its timestamps. Planned kitchen/dispatch times are
+// not stored: they're worked out from the delivery time, so they follow it.
+model Order {
+  id              Int            @id @default(autoincrement())
+  employeeId      Int
+  employee        Employee       @relation(fields: [employeeId], references: [id])
+  companyId       Int // copied at creation: billed to the company the employee was in then
+  company         Company        @relation(fields: [companyId], references: [id])
+  status          OrderStatus    @default(DRAFT)
+  deliveryDate    DateTime       @db.Date
+  deliveryTime    String
+  addressId       Int
+  address         Address        @relation(fields: [addressId], references: [id])
+  packagingTypeId Int?
+  packagingType   PackagingType? @relation(fields: [packagingTypeId], references: [id])
+  total           Int            @default(0) // sum of line totals, fixed once confirmed
+
+  driverId Int?
+  driver   User? @relation("Driver", fields: [driverId], references: [id])
+
+  createdAt        DateTime  @default(now())
+  placedAt         DateTime?
+  confirmedAt      DateTime?
+  cancelledAt      DateTime?
+  rejectedAt       DateTime?
+  rejectReason     String?
+  kitchenStartedAt DateTime?
+  kitchenReadyAt   DateTime?
+  dispatchReadyAt  DateTime?
+  outForDeliveryAt DateTime?
+  deliveredAt      DateTime?
+  deliveredOnTime  Boolean?
+  deliveryNote     String?
+  deliveryPhoto    String? // ponytail: small JPEG data URL in the row; move to object storage if photos grow
+
+  invoiceId Int? // at most one invoice, enforced by being a single column
+  invoice   Invoice? @relation(fields: [invoiceId], references: [id])
+
+  lines       OrderLine[]
+  adjustments Adjustment[]
+
+  @@index([deliveryDate, status])
+  @@index([companyId, status])
+}
+
+// What was ordered and at what price, frozen at the time of ordering.
+model OrderLine {
+  id        Int    @id @default(autoincrement())
+  orderId   Int
+  order     Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  dishId    Int
+  dish      Dish   @relation(fields: [dishId], references: [id])
+  dishName  String
+  dishPrice Int
+  quantity  Int
+  total     Int
+
+  combos OrderCombo[]
+
+  @@index([orderId])
+}
+
+// One combination of choices on a line, e.g. "6 x brown rice + paneer".
+// This is also the kitchen's prep unit.
+model OrderCombo {
+  id        Int       @id @default(autoincrement())
+  lineId    Int
+  line      OrderLine @relation(fields: [lineId], references: [id], onDelete: Cascade)
+  quantity  Int
+  choices   Json // [{ groupName, optionId, optionName, price }] snapshot
+  unitPrice Int // dish price + chosen option prices
+  total     Int
+  startedAt DateTime?
+  doneAt    DateTime?
+
+  @@index([lineId])
+}
+
+// ---------- Billing ----------
+
+model Invoice {
+  id        Int       @id @default(autoincrement())
+  companyId Int
+  company   Company   @relation(fields: [companyId], references: [id])
+  total     Int // orders + adjustments at the time it was created; never changes
+  createdAt DateTime  @default(now())
+  paidAt    DateTime?
+
+  orders      Order[]
+  adjustments Adjustment[]
+}
+
+// A credit (negative) or charge raised after an order's money was settled,
+// e.g. cancelled after invoicing or delivered short. Lands on the next invoice.
+model Adjustment {
+  id        Int      @id @default(autoincrement())
+  orderId   Int
+  order     Order    @relation(fields: [orderId], references: [id])
+  amount    Int
+  reason    String
+  createdAt DateTime @default(now())
+  invoiceId Int?
+  invoice   Invoice? @relation(fields: [invoiceId], references: [id])
+}
