@@ -69,6 +69,7 @@ test('an admin can add a staff member, who can then sign in', async ({
   page,
   browser,
 }) => {
+  test.skip(!!process.env.BASE_URL, 'creates accounts, so local only');
   const email = `cook-${Date.now()}@test.com`;
   await signIn(page, 'admin@test.com');
   await page.getByRole('link', { name: 'Staff' }).click();
