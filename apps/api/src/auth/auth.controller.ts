@@ -1,12 +1,4 @@
-import {
-  Body,
-  Controller,
-  Get,
-  HttpCode,
-  Post,
-  Res,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Post, Res, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { loginSchema, type LoginInput, type Me } from '@fernleaf/shared';
 import type { User } from '@prisma/client';
@@ -42,15 +34,10 @@ export class AuthController {
     const user = await this.db.user.findUnique({
       where: { email: email.toLowerCase() },
     });
-    const ok =
-      user?.active && (await bcrypt.compare(password, user.passwordHash));
-    if (!user || !ok)
-      throw new UnauthorizedException({ message: 'Wrong email or password' });
+    const ok = user?.active && (await bcrypt.compare(password, user.passwordHash));
+    if (!user || !ok) throw new UnauthorizedException({ message: 'Wrong email or password' });
 
-    const token = await this.jwt.signAsync(
-      { sub: user.id },
-      { expiresIn: '7d' },
-    );
+    const token = await this.jwt.signAsync({ sub: user.id }, { expiresIn: '7d' });
     // httpOnly: page scripts can't read it. Browsers allow Secure on localhost too.
     res.cookie('session', token, {
       httpOnly: true,

@@ -4,9 +4,7 @@ import { ROLES, type Role } from './permissions.js';
 
 export const loginSchema = z.object({
   email: z.email('Enter a valid email'),
-  password: z
-    .string({ error: 'Enter your password' })
-    .min(1, 'Enter your password'),
+  password: z.string({ error: 'Enter your password' }).min(1, 'Enter your password'),
 });
 export type LoginInput = z.infer<typeof loginSchema>;
 

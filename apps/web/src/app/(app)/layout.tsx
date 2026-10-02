@@ -1,16 +1,7 @@
 'use client';
 
 import { can, type Permission } from '@fernleaf/shared';
-import {
-  AppShell,
-  Burger,
-  Button,
-  Center,
-  Group,
-  Loader,
-  NavLink,
-  Text,
-} from '@mantine/core';
+import { AppShell, Burger, Button, Center, Group, Loader, NavLink, Text } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
@@ -73,12 +64,7 @@ export default function SignedInLayout({ children }: { children: ReactNode }) {
       <AppShell.Header>
         <Group h="100%" px="md" justify="space-between">
           <Group gap="xs">
-            <Burger
-              opened={menuOpen}
-              onClick={toggle}
-              hiddenFrom="sm"
-              size="sm"
-            />
+            <Burger opened={menuOpen} onClick={toggle} hiddenFrom="sm" size="sm" />
             <Text fw={700}>Fernleaf Kitchen</Text>
           </Group>
           <Group gap="xs">
@@ -98,18 +84,18 @@ export default function SignedInLayout({ children }: { children: ReactNode }) {
       </AppShell.Header>
 
       <AppShell.Navbar p="xs">
-        {NAV.filter(
-          (item) => !item.permission || can(me.data.role, item.permission),
-        ).map((item) => (
-          <NavLink
-            key={item.href}
-            component={Link}
-            href={item.href}
-            label={item.label}
-            active={pathname.startsWith(item.href)}
-            onClick={close}
-          />
-        ))}
+        {NAV.filter((item) => !item.permission || can(me.data.role, item.permission)).map(
+          (item) => (
+            <NavLink
+              key={item.href}
+              component={Link}
+              href={item.href}
+              label={item.label}
+              active={pathname.startsWith(item.href)}
+              onClick={close}
+            />
+          ),
+        )}
       </AppShell.Navbar>
 
       <AppShell.Main>{children}</AppShell.Main>

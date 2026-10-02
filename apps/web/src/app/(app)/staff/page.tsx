@@ -55,11 +55,7 @@ export default function StaffPage() {
           <Group align="flex-end">
             <TextInput label="Name" {...form.getInputProps('name')} />
             <TextInput label="Email" {...form.getInputProps('email')} />
-            <PasswordInput
-              label="Password"
-              w={180}
-              {...form.getInputProps('password')}
-            />
+            <PasswordInput label="Password" w={180} {...form.getInputProps('password')} />
             <Select
               label="Role"
               data={[...ROLES]}

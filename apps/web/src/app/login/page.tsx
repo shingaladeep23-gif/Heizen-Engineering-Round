@@ -25,14 +25,12 @@ export default function LoginPage() {
   });
 
   const login = useMutation({
-    mutationFn: (values: LoginInput) =>
-      api<Me>('/auth/login', { body: values }),
+    mutationFn: (values: LoginInput) => api<Me>('/auth/login', { body: values }),
     onSuccess: (me) => {
       queryClient.setQueryData(['me'], me);
       router.replace('/dashboard');
     },
-    onError: (error) =>
-      form.setErrors(error instanceof ApiError ? error.fieldErrors : {}),
+    onError: (error) => form.setErrors(error instanceof ApiError ? error.fieldErrors : {}),
   });
 
   return (
@@ -44,11 +42,7 @@ export default function LoginPage() {
             Staff sign in
           </Text>
           <Stack>
-            <TextInput
-              label="Email"
-              autoComplete="email"
-              {...form.getInputProps('email')}
-            />
+            <TextInput label="Email" autoComplete="email" {...form.getInputProps('email')} />
             <PasswordInput
               label="Password"
               autoComplete="current-password"

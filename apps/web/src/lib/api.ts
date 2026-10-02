@@ -14,10 +14,7 @@ export class ApiError extends Error {
 }
 
 // Every call goes to /api/..., which Next.js forwards to the NestJS API.
-export async function api<T>(
-  path: string,
-  init?: { method?: string; body?: unknown },
-) {
+export async function api<T>(path: string, init?: { method?: string; body?: unknown }) {
   const res = await fetch(`/api${path}`, {
     method: init?.method ?? (init?.body ? 'POST' : 'GET'),
     headers: init?.body ? { 'Content-Type': 'application/json' } : undefined,

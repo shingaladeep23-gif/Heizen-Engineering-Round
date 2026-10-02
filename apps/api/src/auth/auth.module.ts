@@ -5,9 +5,7 @@ import { AuthController } from './auth.controller.js';
 import { AuthGuard } from './auth.guard.js';
 
 @Module({
-  imports: [
-    JwtModule.register({ global: true, secret: process.env.JWT_SECRET }),
-  ],
+  imports: [JwtModule.register({ global: true, secret: process.env.JWT_SECRET })],
   controllers: [AuthController],
   providers: [{ provide: APP_GUARD, useClass: AuthGuard }],
 })
