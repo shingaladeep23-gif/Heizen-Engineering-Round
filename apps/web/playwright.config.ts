@@ -12,6 +12,8 @@ const liveUrl = process.env.BASE_URL;
 export default defineConfig({
   testDir: './e2e',
   use: { baseURL: liveUrl ?? 'http://localhost:3000' },
+  // Free hosting is slower than localhost, so allow more time there.
+  expect: { timeout: liveUrl ? 15_000 : 5_000 },
   webServer: liveUrl
     ? undefined
     : [

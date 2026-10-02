@@ -3,7 +3,8 @@
 // times are "HH:mm" strings in IST.
 
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["relationJoins"] // load nested includes in one SQL query, not one per level
 }
 
 datasource db {
