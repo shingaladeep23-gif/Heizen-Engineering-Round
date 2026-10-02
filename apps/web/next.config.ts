@@ -1,6 +1,10 @@
 import type { NextConfig } from 'next';
 
-const apiUrl = process.env.API_URL ?? 'http://localhost:4000';
+// Trailing slashes are trimmed so "https://x.com/" doesn't become "//api/...".
+const apiUrl = (process.env.API_URL ?? 'http://localhost:4000').replace(
+  /\/+$/,
+  '',
+);
 
 const nextConfig: NextConfig = {
   // The browser only ever talks to this site. /api/* is forwarded to NestJS,

@@ -17,6 +17,8 @@ export default defineConfig({
     },
     {
       command: 'npm run build && npm run start',
+      // Trailing slash on purpose: production had one, and it broke every call.
+      env: { API_URL: 'http://localhost:4000/' },
       url: 'http://localhost:3000',
       reuseExistingServer: true,
       timeout: 300_000,
