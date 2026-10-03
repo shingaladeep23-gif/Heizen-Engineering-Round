@@ -6,6 +6,7 @@ export type PricedOption = {
   price: number;
   allergens: string[];
   dietaryTags: string[];
+  warnings: string[]; // clashes with the employee's allergies
 };
 
 export type PricedGroup = {

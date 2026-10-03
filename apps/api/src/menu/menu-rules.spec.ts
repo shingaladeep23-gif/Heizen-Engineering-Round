@@ -53,6 +53,16 @@ describe('priceDish', () => {
     expect(dish?.groups[0].options.map((o) => o.price)).toEqual([1500, 2000]);
   });
 
+  it('warns about an option that clashes with an allergy, not just the dish', () => {
+    const dish = priceDish(
+      bowl([group(true, [option(1, 1500, { allergens: [{ name: 'Nuts' }] }), option(2, 1500)])]),
+      STANDARD,
+      { allergies: ['Nuts'], dietaryPrefs: [] },
+    );
+    expect(dish?.warnings).toEqual([]); // the bowl itself has no nuts
+    expect(dish?.groups[0].options.map((o) => o.warnings)).toEqual([['Contains Nuts'], []]);
+  });
+
   it('hides a dish with no price on the tier', () => {
     expect(priceDish({ ...bowl(), prices: [] }, STANDARD, NO_DIET)).toBeNull();
   });

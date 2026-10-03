@@ -50,12 +50,16 @@ export function priceDish(dish: DishRow, tier: TierRule, diet: Diet): PricedDish
     for (const { option } of group.options) {
       const optionPrice = resolvePrice(tier, pricesByTier(option.prices), option.costPrice);
       if (!option.active || optionPrice === null) continue;
+      const allergens = names(option.allergens);
       options.push({
         id: option.id,
         name: option.name,
         price: optionPrice,
-        allergens: names(option.allergens),
+        allergens,
         dietaryTags: names(option.dietaryTags),
+        // Allergies only: most options carry no diet tags, so "not marked
+        // Vegan" on each of them would just be noise.
+        warnings: allergens.filter((a) => diet.allergies.includes(a)).map((a) => `Contains ${a}`),
       });
     }
     // A required choice with nothing left to choose makes the dish unorderable.

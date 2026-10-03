@@ -39,7 +39,9 @@ export type OrderValues = {
   deliveryTime: string;
   addressId: number | null;
   packagingTypeId: number | null;
-  lines: { dishId: number; quantity: number; combos: Combo[] }[];
+  // dishName only for lines of an existing order, to name a dish that has
+  // since left this employee's menu.
+  lines: { dishId: number; dishName?: string; quantity: number; combos: Combo[] }[];
 };
 type Employee = { id: number; name: string; email: string; company: { name: string } };
 
@@ -129,7 +131,7 @@ function LineEditor({
                 const others = combo.optionIds.filter((id) => !ids.includes(id));
                 const data = group.options.map((o) => ({
                   value: String(o.id),
-                  label: `${o.name} (+${formatMoney(o.price)})`,
+                  label: `${o.name} (+${formatMoney(o.price)})${o.warnings.length ? ` ⚠ ${o.warnings.join(', ')}` : ''}`,
                 }));
                 const label = `${group.name}${group.required ? '' : ' (optional)'}`;
                 return group.maxChoices === 1 ? (
@@ -430,14 +432,32 @@ export function OrderForm({ orderId, initial }: { orderId?: number; initial?: Or
       {values.lines.length > 0 && <Title order={4}>This order</Title>}
       {values.lines.map((line, i) => {
         const dish = dishes.get(line.dishId);
-        if (!dish) return null;
+        const remove = () => set({ lines: values.lines.filter((_, j) => j !== i) });
+        if (!dish) {
+          // Hidden, deactivated or unpriced since the order was saved: say so,
+          // rather than hiding a line the server will refuse.
+          if (!menu.data) return null;
+          return (
+            <Alert key={line.dishId} color="red" title="No longer on this employee's menu">
+              <Group justify="space-between">
+                <Text size="sm">
+                  {line.quantity} × {line.dishName ?? `dish #${line.dishId}`} can&apos;t be ordered
+                  any more. Remove it to save the order.
+                </Text>
+                <Button size="compact-sm" color="red" variant="light" onClick={remove}>
+                  Remove
+                </Button>
+              </Group>
+            </Alert>
+          );
+        }
         return (
           <LineEditor
             key={line.dishId}
             dish={dish}
             line={line}
             onChange={(next) => set({ lines: values.lines.map((l, j) => (j === i ? next : l)) })}
-            onRemove={() => set({ lines: values.lines.filter((_, j) => j !== i) })}
+            onRemove={remove}
           />
         );
       })}
@@ -473,6 +493,7 @@ export const valuesFromOrder = (order: import('@fernleaf/shared').OrderDetail): 
   packagingTypeId: order.packagingType?.id ?? null,
   lines: order.lines.map((line) => ({
     dishId: line.dishId,
+    dishName: line.dishName,
     quantity: line.quantity,
     combos: line.combos.map((c) => ({
       quantity: c.quantity,

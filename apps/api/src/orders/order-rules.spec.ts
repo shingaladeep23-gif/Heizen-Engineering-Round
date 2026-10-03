@@ -20,8 +20,8 @@ const BOWL: PricedDish = {
       required: true,
       maxChoices: 1,
       options: [
-        { id: 10, name: 'Brown rice', price: 2500, allergens: [], dietaryTags: [] },
-        { id: 11, name: 'Jeera rice', price: 2000, allergens: [], dietaryTags: [] },
+        { id: 10, name: 'Brown rice', price: 2500, allergens: [], dietaryTags: [], warnings: [] },
+        { id: 11, name: 'Jeera rice', price: 2000, allergens: [], dietaryTags: [], warnings: [] },
       ],
     },
     {
@@ -30,9 +30,9 @@ const BOWL: PricedDish = {
       required: false,
       maxChoices: 2,
       options: [
-        { id: 20, name: 'Raita', price: 2000, allergens: [], dietaryTags: [] },
-        { id: 21, name: 'Pickle', price: 500, allergens: [], dietaryTags: [] },
-        { id: 22, name: 'Chutney', price: 800, allergens: [], dietaryTags: [] },
+        { id: 20, name: 'Raita', price: 2000, allergens: [], dietaryTags: [], warnings: [] },
+        { id: 21, name: 'Pickle', price: 500, allergens: [], dietaryTags: [], warnings: [] },
+        { id: 22, name: 'Chutney', price: 800, allergens: [], dietaryTags: [], warnings: [] },
       ],
     },
   ],

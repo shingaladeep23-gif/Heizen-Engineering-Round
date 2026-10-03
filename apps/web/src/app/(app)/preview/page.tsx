@@ -63,7 +63,12 @@ function DishCard({ dish }: { dish: PricedDish }) {
             {group.required ? '' : ' (optional)'}
             {group.maxChoices > 1 ? `, up to ${group.maxChoices}` : ''}:
           </b>{' '}
-          {group.options.map((o) => `${o.name} +${formatMoney(o.price)}`).join(' · ')}
+          {group.options
+            .map(
+              (o) =>
+                `${o.name} +${formatMoney(o.price)}${o.warnings.length ? ` ⚠ ${o.warnings.join(', ')}` : ''}`,
+            )
+            .join(' · ')}
         </Text>
       ))}
     </Card>
