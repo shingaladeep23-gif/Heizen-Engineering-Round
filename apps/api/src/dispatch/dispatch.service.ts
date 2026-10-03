@@ -75,7 +75,8 @@ export class DispatchService {
         settings.kitchenBufferMinutes,
       );
       const stage = stageOf(group);
-      const delivered = group.find((o) => o.deliveredAt);
+      // Delivery details only make sense once the whole drop has arrived.
+      const delivered = stage === 'delivered' ? group.find((o) => o.deliveredAt) : undefined;
       return {
         ref: {
           companyId: first.companyId,

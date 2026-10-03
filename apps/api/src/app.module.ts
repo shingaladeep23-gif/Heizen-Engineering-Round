@@ -7,6 +7,7 @@ import { BillingController } from './billing/billing.controller.js';
 import { BillingService } from './billing/billing.service.js';
 import { CatalogueController } from './catalogue/catalogue.controller.js';
 import { CompaniesController } from './companies/companies.controller.js';
+import { CompaniesService } from './companies/companies.service.js';
 import { DispatchController } from './dispatch/dispatch.controller.js';
 import { DispatchService } from './dispatch/dispatch.service.js';
 import { DemoDataService } from './demo-data/demo-data.service.js';
@@ -19,6 +20,7 @@ import { OrdersService } from './orders/orders.service.js';
 import { PricingController } from './pricing/pricing.controller.js';
 import { PrismaErrorFilter } from './prisma-error.filter.js';
 import { PrismaModule } from './prisma.service.js';
+import { SettingsController } from './settings/settings.controller.js';
 import { StaffController } from './staff/staff.controller.js';
 
 @Module({
@@ -34,6 +36,7 @@ import { StaffController } from './staff/staff.controller.js';
     KitchenController,
     DispatchController,
     BillingController,
+    SettingsController,
   ],
   providers: [
     DemoDataService,
@@ -42,6 +45,7 @@ import { StaffController } from './staff/staff.controller.js';
     KitchenService,
     DispatchService,
     BillingService,
+    CompaniesService,
     { provide: APP_FILTER, useClass: PrismaErrorFilter },
   ],
 })

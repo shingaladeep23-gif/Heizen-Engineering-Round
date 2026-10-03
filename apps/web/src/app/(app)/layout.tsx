@@ -18,6 +18,7 @@ const NAV: { href: string; label: string; permission?: Permission }[] = [
   { href: '/kitchen', label: 'Kitchen board', permission: 'kitchen.view' },
   { href: '/dispatch', label: 'Dispatch', permission: 'dispatch.view' },
   { href: '/billing', label: 'Billing', permission: 'billing.view' },
+  { href: '/companies', label: 'Companies', permission: 'companies.view' },
   { href: '/dishes', label: 'Dishes', permission: 'catalogue.view' },
   { href: '/options', label: 'Options', permission: 'catalogue.view' },
   { href: '/menu', label: 'Menu', permission: 'catalogue.view' },
@@ -25,6 +26,7 @@ const NAV: { href: string; label: string; permission?: Permission }[] = [
   { href: '/tiers', label: 'Price tiers', permission: 'catalogue.view' },
   { href: '/lists', label: 'Reference lists', permission: 'catalogue.view' },
   { href: '/staff', label: 'Staff', permission: 'staff.manage' },
+  { href: '/settings', label: 'Settings', permission: 'settings.manage' },
 ];
 
 export default function SignedInLayout({ children }: { children: ReactNode }) {

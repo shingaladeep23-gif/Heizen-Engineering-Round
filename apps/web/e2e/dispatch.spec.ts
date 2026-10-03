@@ -2,9 +2,10 @@ import { expect, test } from '@playwright/test';
 import { todayOutForDelivery } from './db';
 import { apiSignIn, createOrder, isLive, LOCAL_ONLY, lockedDate, signIn } from './helpers';
 
-// A delivery time no other test uses, so each test gets its own drop.
-const uniqueTime = () => `14:${String(10 + Math.floor(Math.random() * 50)).padStart(2, '0')}`;
-
+// A random delivery time, so each test almost always gets a drop of its own.
+const pad = (n: number) => String(n).padStart(2, '0');
+const uniqueTime = () =>
+  `${pad(Math.floor(Math.random() * 24))}:${pad(Math.floor(Math.random() * 60))}`;
 test.describe('dispatch board', () => {
   test.skip(isLive, LOCAL_ONLY);
 
@@ -22,7 +23,8 @@ test.describe('dispatch board', () => {
     await page.goto('/dispatch');
     await page.getByLabel('Delivery date').fill(lockedDate());
     const drop = page.locator(`[data-drop="Acme Analytics ${time}"]`);
-    await expect(drop).toContainText('2 orders');
+    await expect(drop).toContainText(`#${a.id}`);
+    await expect(drop).toContainText(`#${b.id}`);
     await expect(drop.getByText('In the kitchen')).toBeVisible();
     // The company's default driver is already assigned.
     await expect(drop.getByRole('combobox', { name: /Driver for/ })).toHaveValue('Dev Driver');
