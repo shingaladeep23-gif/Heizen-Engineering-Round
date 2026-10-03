@@ -61,12 +61,16 @@ function DishCard({ dish }: { dish: PricedDish }) {
           <b>
             {group.name}
             {group.required ? '' : ' (optional)'}
-            {group.maxChoices > 1 ? `, up to ${group.maxChoices}` : ''}:
+            {group.maxChoices > 1 ? `, up to ${group.maxChoices}` : ''}
+            {group.sizes.length > 0 ? `, in ${group.sizes.map((z) => z.name).join(' or ')}` : ''}:
           </b>{' '}
           {group.options
             .map(
               (o) =>
-                `${o.name} +${formatMoney(o.price)}${o.warnings.length ? ` ⚠ ${o.warnings.join(', ')}` : ''}`,
+                `${o.name} +${formatMoney(o.price)}${o.sizes
+                  .filter((z) => z.extra > 0)
+                  .map((z) => ` (${z.name} +${formatMoney(z.extra)} more)`)
+                  .join('')}${o.warnings.length ? ` ⚠ ${o.warnings.join(', ')}` : ''}`,
             )
             .join(' · ')}
         </Text>

@@ -23,11 +23,27 @@ export async function todayOutForDelivery(driverEmail: string | null, employeeId
     where: employeeId ? { id: employeeId } : { name: 'Priya Raman' },
     include: { company: true },
   });
-  // A unique time later today, so the drop is ours alone and still on time.
-  // (Capped at 23:59 so a late-night run doesn't wrap into tomorrow.)
-  const nextHour = new Date(Date.now() + 330 * 60_000).getUTCHours() + 1;
-  const minute = String(Math.floor(Math.random() * 60)).padStart(2, '0');
-  const time = nextHour > 23 ? '23:59' : `${String(nextHour).padStart(2, '0')}:${minute}`;
+  // A time later today that no other order of this company has yet, so the
+  // drop is ours alone and still on time. Never past 23:59, so a late-night
+  // run doesn't wrap into tomorrow (it used to pin every one to 23:59, which
+  // put several tests' orders into one drop).
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const ist = new Date(Date.now() + 330 * 60_000);
+  const taken = new Set(
+    (
+      await db.order.findMany({
+        where: { companyId: employee.companyId, deliveryDate: new Date(todayIST()) },
+        select: { deliveryTime: true },
+      })
+    ).map((o) => o.deliveryTime),
+  );
+  const free: string[] = [];
+  for (let m = ist.getUTCHours() * 60 + ist.getUTCMinutes() + 2; m < 24 * 60; m++) {
+    const t = `${pad(Math.floor(m / 60))}:${pad(m % 60)}`;
+    if (!taken.has(t)) free.push(t);
+  }
+  // Somewhere in the next free hour or so, at random, so parallel tests rarely pick the same.
+  const time = free.length ? free[Math.floor(Math.random() * Math.min(free.length, 60))] : '23:59';
   const now = new Date();
   const order = await db.order.create({
     data: {

@@ -37,8 +37,14 @@ export class MenuService {
     if (!tier)
       return { employee: summary, tierName: 'No price tier', categories: [], secretCategories: [] };
 
-    // Only this tier's prices and its base tier's are needed.
-    const prices = { where: { tierId: { in: [tier.id, tier.baseTierId ?? tier.id] } } };
+    // Portion size charges scale from the default tier's price (D75).
+    const defaultTier =
+      settings.defaultTierId === tier.id || !settings.defaultTierId
+        ? tier
+        : await this.db.priceTier.findUnique({ where: { id: settings.defaultTierId } });
+    // Only this tier's prices, the default tier's, and their base tiers' are needed.
+    const tierIds = [tier, defaultTier].flatMap((t) => (t ? [t.id, t.baseTierId ?? t.id] : []));
+    const prices = { where: { tierId: { in: tierIds } } };
     const categories = await this.db.menuCategory.findMany({
       where: { active: true, id: { notIn: company.hiddenCategories.map((c) => c.id) } },
       orderBy: { position: 'asc' },
@@ -59,10 +65,13 @@ export class MenuService {
                 optionGroups: {
                   orderBy: { position: 'asc' },
                   include: {
+                    sizes: { orderBy: { position: 'asc' }, include: { size: true } },
                     options: {
                       orderBy: { position: 'asc' },
                       include: {
-                        option: { include: { allergens: true, dietaryTags: true, prices } },
+                        option: {
+                          include: { allergens: true, dietaryTags: true, prices, sizes: true },
+                        },
                       },
                     },
                   },
@@ -74,7 +83,12 @@ export class MenuService {
       },
     });
 
-    const rule = { ...tier, factor: tier.factor?.toString() ?? null };
+    const toRule = (t: NonNullable<typeof tier>) => ({
+      ...t,
+      factor: t.factor?.toString() ?? null,
+    });
+    const rule = toRule(tier);
+    const defaultRule = defaultTier ? toRule(defaultTier) : null;
     const diet = {
       allergies: employee.allergies.map((a) => a.name),
       dietaryPrefs: employee.dietaryPrefs.map((d) => d.name),
@@ -85,7 +99,9 @@ export class MenuService {
         id: category.id,
         name: category.name,
         secret: category.secret,
-        dishes: category.items.flatMap((item) => priceDish(item.dish, rule, diet) ?? []),
+        dishes: category.items.flatMap(
+          (item) => priceDish(item.dish, rule, diet, defaultRule) ?? [],
+        ),
       }))
       .filter((category) => category.dishes.length > 0);
 

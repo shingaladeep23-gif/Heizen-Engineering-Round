@@ -5,7 +5,8 @@
 // - companies named "Fernleaf QA ..." whose domains are all on fernleaf-qa.in,
 //   with their employees, orders, invoices and credits
 // - dishes with an SKU starting "QA-", and options, tiers, menu categories,
-//   reference list items and kitchen holidays whose names start with "QA "
+//   reference list items (portion sizes too) and kitchen holidays whose
+//   names start with "QA "
 // - staff accounts on @fernleaf-qa.in
 //
 // One transaction: it removes everything or nothing. If anything outside the
@@ -55,6 +56,7 @@ export async function removeQaData(databaseUrl: string) {
         await tx.dietaryTag.deleteMany({ where: { name: qaName } });
         await tx.station.deleteMany({ where: { name: qaName } });
         await tx.packagingType.deleteMany({ where: { name: qaName } });
+        await tx.portionSize.deleteMany({ where: { name: qaName } });
         await tx.kitchenHoliday.deleteMany({ where: { name: qaName } });
         await tx.user.deleteMany({ where: { email: { endsWith: `@${QA_DOMAIN}` } } });
         return { companies: companies.length, orders: orders.count };

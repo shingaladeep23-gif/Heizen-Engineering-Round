@@ -58,16 +58,25 @@ function pickLines(menu: PricedDish[], rand: () => number): LineInput[] {
             ? [g.options[0].id]
             : [],
       );
+    // In a group with portions, about one in three goes Large (its second size).
+    const sized = (optionIds: number[]) =>
+      dish.groups.flatMap((g) =>
+        g.sizes.length > 1
+          ? g.options
+              .filter((o) => optionIds.includes(o.id) && rand() < 0.3)
+              .map((o) => ({ optionId: o.id, sizeId: g.sizes[1].id }))
+          : [],
+      );
+    const combo = (n: number, optionIds: number[]) => ({
+      quantity: n,
+      optionIds,
+      sizes: sized(optionIds),
+    });
     const split = quantity === 2 && dish.groups.some((g) => g.required && g.options.length > 1);
     return {
       dishId: dish.id,
       quantity,
-      combos: split
-        ? [
-            { quantity: 1, optionIds: pick(0) },
-            { quantity: 1, optionIds: pick(1) },
-          ]
-        : [{ quantity, optionIds: pick(0) }],
+      combos: split ? [combo(1, pick(0)), combo(1, pick(1))] : [combo(quantity, pick(0))],
     };
   });
 }

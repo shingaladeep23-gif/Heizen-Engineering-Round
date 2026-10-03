@@ -1265,6 +1265,162 @@ test.describe('every screen, every role', () => {
     await expect(page.locator('main')).not.toContainText(/NaN|undefined|Invalid Date/);
   });
 
+  // ---------- Portions (4.1, [Should]) ----------
+
+  test('portions: sizes, options that come in them, a group sold in sizes, and a Large order', async ({
+    page,
+  }) => {
+    const REGULAR = `QA Regular ${RUN}`;
+    const LARGE = `QA Large ${RUN}`;
+    const PANEER = `QA Paneer ${RUN}`;
+    const TOFU = `QA Tofu ${RUN}`;
+    const BOWL = `QA Bowl ${RUN}`;
+    await signIn(page, 'admin@test.com');
+
+    // Sizes are an admin-managed list.
+    await page.goto('/lists');
+    const sizesCard = page.locator('.mantine-Card-root', { hasText: 'Portion sizes' });
+    for (const size of [REGULAR, LARGE]) {
+      await page.getByLabel('New Portion sizes').fill(size);
+      await sizesCard.getByRole('button', { name: 'Add' }).click();
+      await expect(sizesCard.getByText(size)).toBeVisible();
+    }
+
+    // Options say which sizes they come in, and what each costs extra.
+    await page.goto('/options');
+    const dialog = page.getByRole('dialog');
+    const newOption = async (name: string, sizes: [string, string][]) => {
+      await page.getByRole('button', { name: 'New option' }).click();
+      await dialog.getByLabel('Name').fill(name);
+      await dialog.getByLabel('Cost price').fill('30');
+      await choose(
+        dialog.getByRole('combobox', { name: 'Comes in sizes' }),
+        page,
+        sizes.map(([size]) => size),
+      );
+      for (const [size, extra] of sizes) {
+        await dialog.getByLabel(`${size} extra charge`).fill(extra);
+      }
+      await dialog.getByRole('button', { name: 'Save option' }).click();
+      await toast(page, 'Option saved');
+    };
+    await newOption(PANEER, [
+      [REGULAR, '0'],
+      [LARGE, '40'],
+    ]);
+    await newOption(TOFU, [[REGULAR, '0']]); // no Large
+    await expect(page.getByRole('row', { name: new RegExp(PANEER) })).toContainText(
+      `${LARGE} +₹40.00`,
+    );
+
+    // A group sold in sizes: every option in it must come in all of them.
+    await page.goto('/dishes/new');
+    await page.getByLabel('Name', { exact: true }).fill(BOWL);
+    await page.getByLabel('SKU').fill(`QA-BOWL-${RUN}`);
+    await page.getByLabel('Cost price').fill('50');
+    await page.getByRole('button', { name: 'Add group' }).click();
+    await page.getByLabel('Group name').fill('QA protein');
+    await choose(
+      page.getByRole('combobox', { name: "Options, in the order they're shown" }),
+      page,
+      [PANEER, TOFU],
+    );
+    await choose(page.getByRole('combobox', { name: 'Sold in sizes (portions)' }), page, [
+      REGULAR,
+      LARGE,
+    ]);
+    await page.getByRole('button', { name: 'Save' }).click();
+    await fieldError(page, `${TOFU} doesn't come in ${LARGE}`);
+    // Take tofu out of the group, and it saves.
+    await page.locator('.mantine-Pill-root', { hasText: TOFU }).locator('.mantine-Pill-remove').click();
+    await page.getByRole('button', { name: 'Save' }).click();
+    await toast(page, 'Dish saved');
+    await expect(page).toHaveURL(/\/dishes\/\d+$/);
+    const bowlId = Number(page.url().split('/').pop());
+
+    // And paneer can't drop Large while the bowl sells it.
+    await page.goto('/options');
+    await page.getByRole('row', { name: new RegExp(PANEER) }).click();
+    await dialog
+      .locator('.mantine-Pill-root', { hasText: LARGE })
+      .locator('.mantine-Pill-remove')
+      .click();
+    await dialog.getByRole('button', { name: 'Save option' }).click();
+    await toast(page, `sells it in ${LARGE}, so that size has to stay`);
+    await page.keyboard.press('Escape');
+
+    // Prices: the bowl ₹200 on this run's tier; paneer ₹60 on the default tier
+    // and ₹54 on this tier, so Large's ₹40 extra becomes ₹36 here (it scales
+    // with the option).
+    const tiers = await json<{ id: number; isDefault: boolean }[]>('/api/tiers');
+    const defaultTier = tiers.find((t) => t.isDefault)!.id;
+    const options = await json<{ id: number; name: string }[]>('/api/options');
+    const paneerId = options.find((o) => o.name === PANEER)!.id;
+    const prices: [number, string, number, number][] = [
+      [s.tierId, 'dish', bowlId, 20000],
+      [s.tierId, 'option', paneerId, 5400],
+      [defaultTier, 'option', paneerId, 6000],
+    ];
+    for (const [tierId, kind, id, price] of prices) {
+      const res = await admin.put(`/api/tiers/${tierId}/prices`, { data: { kind, id, price } });
+      expect(res.ok()).toBe(true);
+    }
+    const categories = await json<{ id: number; name: string }[]>('/api/menu/categories');
+    const category = categories.find((c) => c.name === CATEGORY)!.id;
+    const added = await admin.post(`/api/menu/categories/${category}/items`, {
+      data: { dishId: bowlId },
+    });
+    expect(added.ok()).toBe(true);
+
+    // The preview shows the sizes and this tier's extra.
+    await page.goto('/preview');
+    await pick(page, 'Employee', TWO);
+    await page.getByRole('combobox', { name: 'Open a secret category' }).click();
+    await page.getByRole('option', { name: CATEGORY }).click();
+    await expect(page.locator('.mantine-Card-root', { hasText: BOWL })).toContainText(
+      `QA protein, in ${REGULAR} or ${LARGE}: ${PANEER} +₹54.00 (${LARGE} +₹36.00 more)`,
+    );
+
+    // Order: Regular by default, then 2 Large and 1 Regular as two combinations.
+    await page.goto('/orders/new');
+    await pick(page, 'Employee', TWO);
+    await page.getByLabel('Delivery date').fill(openDate());
+    await page.getByRole('button', { name: `Add ${BOWL}` }).click();
+    await pick(page, `${BOWL} combination 1 QA protein`, PANEER);
+    const size1 = page.getByRole('combobox', { name: `${BOWL} combination 1 ${PANEER} size` });
+    await expect(size1).toHaveValue(REGULAR);
+    await expect(page.getByRole('heading', { name: 'Total ₹254.00' })).toBeVisible(); // 200 + 54
+    await page.getByLabel(`${BOWL} quantity`).fill('3');
+    await page.getByLabel(`${BOWL} combination 1 quantity`).fill('2');
+    await pick(page, `${BOWL} combination 1 ${PANEER} size`, LARGE);
+    await page.getByRole('button', { name: 'Add combination' }).click();
+    await pick(page, `${BOWL} combination 2 QA protein`, PANEER);
+    // 2 x (200 + 54 + 36) + 1 x (200 + 54) = 580 + 254
+    await expect(page.getByRole('heading', { name: 'Total ₹834.00' })).toBeVisible();
+    await page.getByRole('button', { name: 'Place order' }).click();
+    await toast(page, 'Order saved');
+    await expect(page).toHaveURL(/\/orders\/\d+$/);
+    const orderId = Number(page.url().split('/').pop());
+    await expect(page.getByRole('row', { name: /Order total/ })).toContainText('₹834.00');
+    await expect(page.getByText(`${PANEER}, ${LARGE} (+₹90.00)`)).toBeVisible();
+    await expect(page.getByText(`${PANEER}, ${REGULAR} (+₹54.00)`)).toBeVisible();
+
+    // The kitchen sees two prep units, one per size.
+    const board = await json<{ units: { orderId: number; choices: string; quantity: number }[] }>(
+      `/api/kitchen?date=${openDate()}`,
+    );
+    const units = board.units
+      .filter((u) => u.orderId === orderId)
+      .map((u) => `${u.quantity} × ${u.choices}`)
+      .sort();
+    expect(units).toEqual([`1 × ${PANEER} (${REGULAR})`, `2 × ${PANEER} (${LARGE})`]);
+
+    // Editing keeps the sizes as they were.
+    await page.getByRole('link', { name: 'Edit' }).click();
+    await expect(size1).toHaveValue(`${LARGE} (+₹36.00)`);
+    await expect(page.getByRole('heading', { name: 'Total ₹834.00' })).toBeVisible();
+  });
+
   // ---------- Phones ----------
 
   test('on a phone, no screen is wider than the phone (wide tables scroll inside themselves)', async ({

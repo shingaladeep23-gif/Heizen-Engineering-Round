@@ -20,18 +20,21 @@ import { MoneyInput } from '@/components/MoneyInput';
 import { api, useAction, useCan, useLists } from '@/lib/api';
 
 type Named = { id: number; name: string };
-type OptionRow = Required<Omit<OptionInput, 'allergenIds' | 'dietaryTagIds'>> & {
+type OptionRow = Required<Omit<OptionInput, 'allergenIds' | 'dietaryTagIds' | 'sizes'>> & {
   id: number;
   allergens: Named[];
   dietaryTags: Named[];
+  sizes: { sizeId: number; extraCharge: number; size: Named }[];
 };
+type Form = Required<OptionInput> & { sizes: { sizeId: number; extraCharge: number }[] };
 
-const EMPTY: Required<OptionInput> = {
+const EMPTY: Form = {
   name: '',
   costPrice: 0,
   active: true,
   allergenIds: [],
   dietaryTagIds: [],
+  sizes: [],
 };
 
 const toSelect = (items: Named[] = []) =>
@@ -42,10 +45,10 @@ export default function OptionsPage() {
   const lists = useLists();
   const options = useQuery({ queryKey: ['options'], queryFn: () => api<OptionRow[]>('/options') });
   const [editingId, setEditingId] = useState<number | 'new' | null>(null);
-  const form = useForm<Required<OptionInput>>({ initialValues: EMPTY });
+  const form = useForm<Form>({ initialValues: EMPTY });
 
   const save = useAction(
-    (values: Required<OptionInput>) =>
+    (values: Form) =>
       editingId === 'new'
         ? api('/options', { body: values })
         : api(`/options/${editingId}`, { method: 'PUT', body: values }),
@@ -59,6 +62,7 @@ export default function OptionsPage() {
             ...option,
             allergenIds: option.allergens.map((a) => a.id),
             dietaryTagIds: option.dietaryTags.map((t) => t.id),
+            sizes: option.sizes.map(({ sizeId, extraCharge }) => ({ sizeId, extraCharge })),
           }
         : EMPTY,
     );
@@ -80,6 +84,7 @@ export default function OptionsPage() {
             <Table.Th>Cost</Table.Th>
             <Table.Th>Allergens</Table.Th>
             <Table.Th>Dietary</Table.Th>
+            <Table.Th>Sizes</Table.Th>
             <Table.Th>Status</Table.Th>
           </Table.Tr>
         </Table.Thead>
@@ -94,6 +99,11 @@ export default function OptionsPage() {
               <Table.Td>{formatMoney(option.costPrice)}</Table.Td>
               <Table.Td>{option.allergens.map((a) => a.name).join(', ')}</Table.Td>
               <Table.Td>{option.dietaryTags.map((t) => t.name).join(', ')}</Table.Td>
+              <Table.Td>
+                {option.sizes
+                  .map((s) => `${s.size.name} +${formatMoney(s.extraCharge)}`)
+                  .join(', ')}
+              </Table.Td>
               <Table.Td>
                 <Badge color={option.active ? 'green' : 'gray'} variant="light">
                   {option.active ? 'Active' : 'Inactive'}
@@ -130,6 +140,37 @@ export default function OptionsPage() {
               value={form.values.dietaryTagIds.map(String)}
               onChange={(v) => form.setFieldValue('dietaryTagIds', v.map(Number))}
             />
+            <MultiSelect
+              label="Comes in sizes"
+              description="Portions: only needed for options in a group sold in sizes"
+              data={toSelect(lists.data?.['portion-sizes'])}
+              value={form.values.sizes.map((s) => String(s.sizeId))}
+              onChange={(v) =>
+                form.setFieldValue(
+                  'sizes',
+                  v.map(
+                    (id) =>
+                      form.values.sizes.find((s) => s.sizeId === Number(id)) ?? {
+                        sizeId: Number(id),
+                        extraCharge: 0,
+                      },
+                  ),
+                )
+              }
+              error={form.errors.sizes}
+            />
+            {form.values.sizes.map((s, i) => {
+              const name = lists.data?.['portion-sizes'].find((p) => p.id === s.sizeId)?.name;
+              return (
+                <MoneyInput
+                  key={s.sizeId}
+                  label={`${name} extra charge`}
+                  description="Default tier price; other tiers scale it like the option"
+                  value={s.extraCharge}
+                  onChange={(paise) => form.setFieldValue(`sizes.${i}.extraCharge`, paise ?? 0)}
+                />
+              );
+            })}
             <Switch label="Active" {...form.getInputProps('active', { type: 'checkbox' })} />
             <Button type="submit" loading={save.isPending}>
               Save option

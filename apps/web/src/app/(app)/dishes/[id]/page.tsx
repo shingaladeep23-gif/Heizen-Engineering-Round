@@ -29,7 +29,13 @@ import { Waiting } from '@/components/Waiting';
 import { api, useAction, useCan, useLists } from '@/lib/api';
 
 type Form = Required<Omit<DishInput, 'optionGroups'>> & {
-  optionGroups: { name: string; required: boolean; maxChoices: number; optionIds: number[] }[];
+  optionGroups: {
+    name: string;
+    required: boolean;
+    maxChoices: number;
+    optionIds: number[];
+    sizeIds: number[];
+  }[];
 };
 
 const EMPTY: Form = {
@@ -201,6 +207,7 @@ export default function DishPage() {
                     required: true,
                     maxChoices: 1,
                     optionIds: [],
+                    sizeIds: [],
                   })
                 }
               >
@@ -271,6 +278,15 @@ export default function DishPage() {
                 value={toValues(group.optionIds)}
                 onChange={(v) => form.setFieldValue(`optionGroups.${i}.optionIds`, toIds(v))}
                 error={form.errors[`optionGroups.${i}.optionIds`]}
+              />
+              <MultiSelect
+                mt="sm"
+                label="Sold in sizes (portions)"
+                description="Leave empty if this group has no sizes. Every option in it must come in all of them; the first is the default."
+                data={toSelect(lists.data?.['portion-sizes'])}
+                value={toValues(group.sizeIds ?? [])}
+                onChange={(v) => form.setFieldValue(`optionGroups.${i}.sizeIds`, toIds(v))}
+                error={form.errors[`optionGroups.${i}.sizeIds`]}
               />
             </Card>
           ))}

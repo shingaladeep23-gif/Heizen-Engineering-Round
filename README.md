@@ -128,6 +128,10 @@ erDiagram
     Dish ||--o{ OptionGroup : has
     OptionGroup ||--o{ OptionGroupOption : lists
     Option ||--o{ OptionGroupOption : "appears in"
+    OptionGroup ||--o{ OptionGroupSize : "sold in (portions)"
+    PortionSize ||--o{ OptionGroupSize : ""
+    Option ||--o{ OptionSize : "comes in, + extra charge"
+    PortionSize ||--o{ OptionSize : ""
     Dish }o--o| Station : "cooked at"
     Dish }o--o{ Allergen : contains
     Option }o--o{ Allergen : contains
@@ -170,6 +174,8 @@ The full schema with comments is in `apps/api/prisma/schema.prisma`. The ideas t
 1. If the tier has a typed price (an override, on a derived tier), use it.
 2. If the tier is derived, take the base (cost, or the base tier's typed price), multiply by the factor, and **round up to the next 5 paise**. The factor is scaled to an integer first (1.15 → 11500), so the maths stays exact.
 3. Otherwise there's no price, and the dish or option is **left off that employee's menu entirely**. If that empties a required option group, the whole dish disappears, because it can't be ordered.
+
+**Portions (4.1, [Should]).** Portion sizes (Regular, Large, …) are an admin list. An option group either uses sizes or it doesn't: it does if it lists any, in order, and the first is the default. Each option says which sizes it comes in and what each costs extra. The server refuses a group whose options don't all come in every one of its sizes, and an option dropping a size a group still sells. The extra charge is entered as the default tier's price; on any other tier it scales by the same proportion as the option's own price (paneer 10% cheaper on Enterprise, so is its Large extra), rounded up to 5 paise. A combination's price is dish + each option + its size's extra. The size is frozen on the order with everything else, and "Large paneer" and "Regular paneer" on the same line are two combinations, so two prep units.
 
 **Cut-off (4.6).** Orders for a delivery date lock at the configured time, N **kitchen** working days before it, skipping kitchen holidays and days off. With 2 days at 16:00, a Wednesday locks on Monday at 16:00. Company calendars decide which days a company can receive deliveries, but they never move the cut-off. When a cut-off passes, drafts for that date are cancelled and placed orders are confirmed. That runs every minute, again before order lists and boards load (free hosting can be asleep when the timer should fire), and on demand from the Orders page for any past cut-off. It only touches orders still in DRAFT or PLACED, so running it twice is harmless.
 
@@ -278,10 +284,11 @@ Just their own drops for **today**, in time order, with the address (a map link)
 
 ## What I built, what I skipped, and why
 
-I did the [Must] items properly first and went over them again with tests. With the time left, I added one [Should] item (CSV import) and skipped the other (portions).
+I did the [Must] items properly first and went over them again with tests. With the time left, I added both [Should] items: CSV import, and then portions on the last day, once everything else was tested on the live site. The spec has no [Could] items.
 
-**Built (all [Must] items):**
-- Catalogue: dishes, options, option groups with ordering, required/optional and max choices; admin-managed allergens, dietary tags, stations and packaging; dishes deactivated, never deleted.
+**Built (all [Must] items, and both [Should] items):**
+- Catalogue: dishes, options, option groups with ordering, required/optional and max choices; admin-managed allergens, dietary tags, stations, packaging and portion sizes; dishes deactivated, never deleted.
+- **Portions [Should]**: groups sold in sizes, options with an extra charge per size, priced per tier, chosen per option in the order form, frozen on the order, and shown on the order, preview and kitchen board (see "How the main rules work").
 - Menu: ordered categories and items, active flags, per-company hiding, secret categories, and a preview as any employee.
 - Pricing: named tiers, a default tier, company tiers, derived tiers (cost × or tier ×) with overrides, rounding up to 5 paise, and a whole-tier grid that highlights missing prices.
 - Companies: domains (unique, no public domains), addresses, billing contact, owner, calendar and holidays, delivery defaults, tier, hidden items.
@@ -292,18 +299,16 @@ I did the [Must] items properly first and went over them again with tests. With 
 - Server-side permissions throughout, the live site with the four test accounts, and self-refreshing demo data.
 
 **Skipped:**
-- **Portions [Should]** (sizes like regular/large on an option group). It touches the schema, pricing, the order form and the kitchen board. I'd rather every [Must] be right than have portions half-done. The model has room for it: a `PortionSize` list plus a size on each group and on each combination choice.
 - **Renaming reference list items** (allergens and the like). Add and delete only, because nothing needed rename yet.
 - Everything in section 5 (payments, exports, notifications, audit logs, tax, fees, coupons and so on), as instructed.
 
 **What I'd do next with more time:**
-1. Portions.
-2. A real audit trail: who changed what. The timeline knows *when* but not *who*.
-3. Store delivery photos in object storage instead of the database.
-4. Kitchen board: a per-station "cook screen" mode with bigger buttons, and push updates instead of polling every 30 s.
-5. Billing: invoice PDFs, payment terms per company instead of a fixed 14 days, and partial payments.
-6. Tests: more unit tests on the services themselves (they're covered through Playwright today), and running Playwright in CI on every push, not only in a local pre-commit hook.
-7. Staff: switching a driver off, or changing their role, leaves any company that uses them as its default driver still pointing at them. Newly confirmed orders still get that person as their driver, and dispatch has to pick someone else for each drop (the driver list only offers active drivers). Nothing is lost, but the Staff page should warn and offer to pick a new default.
+1. A real audit trail: who changed what. The timeline knows *when* but not *who*.
+2. Store delivery photos in object storage instead of the database.
+3. Kitchen board: a per-station "cook screen" mode with bigger buttons, and push updates instead of polling every 30 s.
+4. Billing: invoice PDFs, payment terms per company instead of a fixed 14 days, and partial payments.
+5. Tests: more unit tests on the services themselves (they're covered through Playwright today), and running Playwright in CI on every push, not only in a local pre-commit hook.
+6. Staff: switching a driver off, or changing their role, leaves any company that uses them as its default driver still pointing at them. Newly confirmed orders still get that person as their driver, and dispatch has to pick someone else for each drop (the driver list only offers active drivers). Nothing is lost, but the Staff page should warn and offer to pick a new default.
 
 ---
 
@@ -333,6 +338,10 @@ I did the [Must] items properly first and went over them again with tests. With 
 | Are admins drivers? | No. Admins can do everything except have their "own" deliveries. |
 | When an order became confirmed | At the cut-off moment itself, even if processing ran later, because that's when it became billable. |
 | Lines after confirmation | Can't be edited, so order totals (and invoices) stay fixed. Admins can change delivery details, cancel or reject, and credit once it's delivered. |
+| Portions: where a size's extra charge lives | Per option, per size: Large paneer and Large rice can cost different amounts extra. That's what "every option must support the group's sizes" suggests. |
+| Portions on price tiers | The extra is entered as the default tier's price and scales with the option on every tier (by the ratio of the option's tier price to its default price), rounded up to 5 paise. This works the same for typed, cost-based and tier-based tiers. |
+| Portions: which size by default | The group's first size, so staff only touch sizes when someone wants a different one. The API does the same when no size is sent. |
+| Portions in the kitchen | The same option in another size is another combination, so another prep unit ("2 × paneer (Large)", "1 × paneer (Regular)"). |
 | Credits ("a delivered order that turns out short") | Only on delivered orders. Before delivery nothing can be short, and cancelling or rejecting covers an order that won't go ahead. |
 | Overdue invoices | Unpaid for more than 14 days. |
 | "Lists are paginated on the server" | The order list, which grows without limit, is paginated on the server (20 per page) with server-side search and filters. Reference lists (dishes, options, tiers, companies, staff) are small and loaded whole. A company's "not invoiced yet" list is bounded by its billing cycle, and staff tick items across the whole list to build an invoice, so it isn't split into pages. |
@@ -341,15 +350,16 @@ I did the [Must] items properly first and went over them again with tests. With 
 
 ## Tests
 
-The spec asked for tests on the rules most likely to break. Those are the pure-function unit tests (Vitest, **50 tests** in `apps/api/src/**/*.spec.ts`):
+The spec asked for tests on the rules most likely to break. Those are the pure-function unit tests (Vitest, **59 tests** in `apps/api/src/**/*.spec.ts`):
 - **cut-off calculation:** the spec's own Wednesday → Monday 16:00 example, weekends, kitchen holidays, same-day cut-off, and "today in IST" while UTC is still on yesterday
 - **pricing resolution:** typed, derived from cost and from a tier, overrides, missing base, zero cost, rounding with 1.15 (which floats can't hold exactly)
 - **combination counting:** the spec's 6 + 4 = 10 example, quantities that don't add up, a skipped required group, too many choices, unknown options, duplicate combinations, minimum quantity
 - **invoicing:** billable statuses, invoice totals with credits, the credit cap
 - kitchen unit states and dispatch step order
 - the CSV parser and import rules (quoted commas, Windows line endings, every kind of bad row)
+- portions: the default size, the extra charge in the price, another size as another combination, sizes a group doesn't sell, and scaling the extra charge on each kind of tier
 
-**Playwright** (**96 tests** in `apps/web/e2e`) drives a real browser against **production builds** of both apps and a real Postgres. It covers:
+**Playwright** (**97 tests** in `apps/web/e2e`) drives a real browser against **production builds** of both apps and a real Postgres. It covers:
 - each role's sign-in and landing page
 - server-side 403s for every role on things they shouldn't touch
 - creating a dish
@@ -362,12 +372,13 @@ The spec asked for tests on the rules most likely to break. Those are the pure-f
 - billing with credits
 - companies, employees and settings
 
-Within those, **every screen as every role** (`e2e/screens.spec.ts`, 26 tests) works the app only through the browser, the way staff do, with good and bad input. It runs locally and against the live site (it builds its own company, tier, dish and staff, all marked as test data, which the cleanup removes):
+Within those, **every screen as every role** (`e2e/screens.spec.ts`, 27 tests) works the app only through the browser, the way staff do, with good and bad input. It runs locally and against the live site (it builds its own company, tier, dish and staff, all marked as test data, which the cleanup removes):
 - each role's menu and landing page, and a clear "no access" on every page a role can't use
 - every form's mistakes coming back next to the right field: sign-in, staff, reference lists, options, dishes and option groups, tiers, menu, companies (public, taken and malformed domains, holidays without a date, limits), employees
 - the order form refusing each kind of bad combination with a message that names the dish and the choice, drafts, placing, editing, cancelling, the cut-off, admin overrides, credits and rejection
 - the kitchen board, the dispatch board and the driver's phone view, button by button
 - billing: choosing what goes on an invoice, totals, paid, credits after cancelling
+- portions end to end: sizes, options that come in them, a group refused until every option comes in its sizes, a Large order priced on a tier, and two prep units for two sizes
 - every admin screen at phone width, with nothing wider than the screen
 
 Writing it found six problems, all fixed:
@@ -421,6 +432,7 @@ The spec asks for realistic data, including orders for whatever day the review h
 - **History stays realistic:** with no one working the boards over the two-week review, unfinished orders from past days are marked delivered overnight. This is a demo convenience, not something the real product would do, which is why it only runs in demo mode.
 
 Things in the demo data worth looking at:
+- portions: the Build-your-own Protein Bowl sells its protein in Regular or Large (Large is ₹20–50 more, depending on the protein); some demo orders are Large
 - the Startup tier, which is missing prices on 6 dishes and has no price for Chicken tikka, so Nimbus Labs sees a smaller menu
 - Kaveri Consulting, a vegetarian office with the chicken dishes hidden
 - the secret "Chef's Specials" category

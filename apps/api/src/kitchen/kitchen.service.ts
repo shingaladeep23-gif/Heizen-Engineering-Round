@@ -58,7 +58,9 @@ export class KitchenService {
           station: line.dish.station?.name ?? 'Unassigned',
           dishName: line.dishName,
           quantity: combo.quantity,
-          choices: (combo.choices as Choice[]).map((c) => c.optionName).join(', '),
+          choices: (combo.choices as Choice[])
+            .map((c) => (c.size ? `${c.optionName} (${c.size.name})` : c.optionName))
+            .join(', '),
           startedAt: combo.startedAt?.toISOString() ?? null,
           doneAt: combo.doneAt?.toISOString() ?? null,
           state: unitState(

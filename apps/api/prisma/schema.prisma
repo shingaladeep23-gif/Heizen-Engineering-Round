@@ -119,6 +119,7 @@ model Option {
   dietaryTags DietaryTag[]
   prices      OptionPrice[]
   groups      OptionGroupOption[]
+  sizes       OptionSize[]
 }
 
 model OptionGroup {
@@ -131,6 +132,7 @@ model OptionGroup {
   position   Int
 
   options OptionGroupOption[]
+  sizes   OptionGroupSize[] // none = the group doesn't use portions
 }
 
 model OptionGroupOption {
@@ -141,6 +143,40 @@ model OptionGroupOption {
   option   Option      @relation(fields: [optionId], references: [id])
 
   @@id([groupId, optionId])
+}
+
+// ---------- Portions (spec 4.1, [Should]) ----------
+
+// Admin-managed sizes, e.g. Regular, Large.
+model PortionSize {
+  id      Int               @id @default(autoincrement())
+  name    String            @unique
+  groups  OptionGroupSize[]
+  options OptionSize[]
+}
+
+// The sizes a group sells its options in, in display order.
+model OptionGroupSize {
+  groupId  Int
+  sizeId   Int
+  position Int
+  group    OptionGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  size     PortionSize @relation(fields: [sizeId], references: [id])
+
+  @@id([groupId, sizeId])
+}
+
+// The sizes an option comes in, each with an extra charge on top of the
+// option's own price. The charge is the default tier's price; other tiers
+// scale it by the same proportion as the option's price (D75).
+model OptionSize {
+  optionId    Int
+  sizeId      Int
+  extraCharge Int // paise
+  option      Option      @relation(fields: [optionId], references: [id], onDelete: Cascade)
+  size        PortionSize @relation(fields: [sizeId], references: [id])
+
+  @@id([optionId, sizeId])
 }
 
 // ---------- Pricing ----------
@@ -368,7 +404,7 @@ model OrderCombo {
   lineId    Int
   line      OrderLine @relation(fields: [lineId], references: [id], onDelete: Cascade)
   quantity  Int
-  choices   Json // [{ groupName, optionId, optionName, price }] snapshot
+  choices   Json // [{ groupName, optionId, optionName, price, size? }] snapshot
   unitPrice Int // dish price + chosen option prices
   total     Int
   startedAt DateTime?

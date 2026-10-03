@@ -272,7 +272,11 @@ export default function OrderPage() {
                   <Table.Td>
                     {combo.choices.length
                       ? combo.choices
-                          .map((c) => `${c.optionName} (+${formatMoney(c.price)})`)
+                          .map((c) =>
+                            c.size
+                              ? `${c.optionName}, ${c.size.name} (+${formatMoney(c.price + c.size.extra)})`
+                              : `${c.optionName} (+${formatMoney(c.price)})`,
+                          )
                           .join(', ')
                       : 'No choices'}
                   </Table.Td>

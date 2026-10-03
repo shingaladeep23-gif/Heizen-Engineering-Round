@@ -7,6 +7,8 @@ export type PricedOption = {
   allergens: string[];
   dietaryTags: string[];
   warnings: string[]; // clashes with the employee's allergies
+  // The group's sizes with this option's extra charge on this tier.
+  sizes: { id: number; name: string; extra: number }[];
 };
 
 export type PricedGroup = {
@@ -15,6 +17,7 @@ export type PricedGroup = {
   required: boolean;
   maxChoices: number;
   options: PricedOption[];
+  sizes: { id: number; name: string }[]; // empty = no portions; the first is the default
 };
 
 export type PricedDish = {

@@ -20,6 +20,7 @@ const TITLES: Record<ListKind, string> = {
   'dietary-tags': 'Dietary tags',
   stations: 'Kitchen stations',
   'packaging-types': 'Packaging types',
+  'portion-sizes': 'Portion sizes',
 };
 
 function ListCard({ kind }: { kind: ListKind }) {

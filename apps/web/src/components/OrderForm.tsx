@@ -32,7 +32,11 @@ import { api, useAction, useLists } from '@/lib/api';
 import { formatDateTime } from '@/lib/format';
 
 type Line = OrderInput['lines'][number];
-type Combo = { quantity: number; optionIds: number[] };
+type Combo = {
+  quantity: number;
+  optionIds: number[];
+  sizes?: { optionId: number; sizeId: number }[]; // for options in groups with portions
+};
 export type OrderValues = {
   employeeId: number | null;
   deliveryDate: string | null;
@@ -45,12 +49,27 @@ export type OrderValues = {
 };
 type Employee = { id: number; name: string; email: string; company: { name: string } };
 
+type Group = PricedDish['groups'][number];
+
+// The size chosen for an option, or the group's first (the default).
+const sizeOf = (group: Group, combo: Combo, optionId: number) =>
+  combo.sizes?.find((s) => s.optionId === optionId)?.sizeId ?? group.sizes[0]?.id;
+
+// A preview only: the server prices the order itself.
 const unitPrice = (dish: PricedDish, combo: Combo) =>
   dish.price +
-  dish.groups
-    .flatMap((g) => g.options)
-    .filter((o) => combo.optionIds.includes(o.id))
-    .reduce((sum, o) => sum + o.price, 0);
+  dish.groups.reduce(
+    (sum, g) =>
+      sum +
+      g.options
+        .filter((o) => combo.optionIds.includes(o.id))
+        .reduce(
+          (s, o) =>
+            s + o.price + (o.sizes.find((z) => z.id === sizeOf(g, combo, o.id))?.extra ?? 0),
+          0,
+        ),
+    0,
+  );
 
 function LineEditor({
   dish,
@@ -162,6 +181,37 @@ function LineEditor({
                   />
                 );
               })}
+              {/* Portions: a size for each chosen option in a group sold in sizes. */}
+              {dish.groups.flatMap((group) =>
+                group.sizes.length === 0
+                  ? []
+                  : group.options
+                      .filter((o) => combo.optionIds.includes(o.id))
+                      .map((o) => (
+                        <Select
+                          key={`size-${group.id}-${o.id}`}
+                          label={`${o.name} size`}
+                          aria-label={`${dish.name} combination ${i + 1} ${o.name} size`}
+                          allowDeselect={false}
+                          data={o.sizes.map((z) => ({
+                            value: String(z.id),
+                            label: z.extra ? `${z.name} (+${formatMoney(z.extra)})` : z.name,
+                          }))}
+                          value={String(sizeOf(group, combo, o.id))}
+                          onChange={(v) =>
+                            v &&
+                            setCombo(i, {
+                              ...combo,
+                              sizes: [
+                                ...(combo.sizes ?? []).filter((z) => z.optionId !== o.id),
+                                { optionId: o.id, sizeId: Number(v) },
+                              ],
+                            })
+                          }
+                          w={170}
+                        />
+                      )),
+              )}
               <Text size="sm" mb={8}>
                 = {formatMoney(unitPrice(dish, combo) * combo.quantity)}
               </Text>
@@ -498,6 +548,9 @@ export const valuesFromOrder = (order: import('@fernleaf/shared').OrderDetail): 
     combos: line.combos.map((c) => ({
       quantity: c.quantity,
       optionIds: c.choices.map((ch) => ch.optionId),
+      sizes: c.choices.flatMap((ch) =>
+        ch.size ? [{ optionId: ch.optionId, sizeId: ch.size.id }] : [],
+      ),
     })),
   })),
 });

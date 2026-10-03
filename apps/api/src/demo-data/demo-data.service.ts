@@ -3,7 +3,12 @@ import { Interval } from '@nestjs/schedule';
 import bcrypt from 'bcryptjs';
 import { MenuService } from '../menu/menu.service.js';
 import { PrismaService } from '../prisma.service.js';
-import { addMissingDishImages, seedCatalogue, seedMissingCompanies } from './catalogue-seed.js';
+import {
+  addMissingDishImages,
+  addPortionsOnce,
+  seedCatalogue,
+  seedMissingCompanies,
+} from './catalogue-seed.js';
 import { DemoOrders } from './demo-orders.js';
 
 // The live app must always have the reviewers' test accounts and realistic
@@ -49,6 +54,7 @@ export class DemoDataService implements OnApplicationBootstrap {
       await seedCatalogue(this.db, driver.id);
       this.log.log('Seeded the demo catalogue, companies and employees');
     }
+    if (await addPortionsOnce(this.db)) this.log.log('Added portion sizes to the protein bowl');
 
     if (DEMO_MODE) {
       await seedMissingCompanies(this.db, driver.id);

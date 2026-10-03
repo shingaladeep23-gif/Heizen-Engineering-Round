@@ -576,3 +576,41 @@ export async function seedMissingCompanies(db: PrismaClient, driverId: number) {
     });
   }
 }
+
+// Portions [Should]: the Build-your-own Protein Bowl sells its protein in two
+// sizes. Added once to any database that has no sizes yet (fresh or not), so
+// the live demo gets it too. Large costs more for the pricier proteins.
+const LARGE_EXTRA: Record<string, number> = {
+  Paneer: 4000,
+  Tofu: 3000,
+  Chickpeas: 2000,
+  'Chicken tikka': 5000,
+};
+
+export async function addPortionsOnce(db: PrismaClient) {
+  if ((await db.portionSize.count()) > 0) return false;
+  const group = await db.optionGroup.findFirst({
+    where: { name: 'Choose your protein', dish: { name: 'Build-your-own Protein Bowl' } },
+    include: { options: { include: { option: true } } },
+  });
+  if (!group) return false;
+  await db.$transaction(async (tx) => {
+    const regular = await tx.portionSize.create({ data: { name: 'Regular' } });
+    const large = await tx.portionSize.create({ data: { name: 'Large' } });
+    for (const { option } of group.options) {
+      await tx.optionSize.createMany({
+        data: [
+          { optionId: option.id, sizeId: regular.id, extraCharge: 0 },
+          { optionId: option.id, sizeId: large.id, extraCharge: LARGE_EXTRA[option.name] ?? 3000 },
+        ],
+      });
+    }
+    await tx.optionGroupSize.createMany({
+      data: [
+        { groupId: group.id, sizeId: regular.id, position: 0 },
+        { groupId: group.id, sizeId: large.id, position: 1 },
+      ],
+    });
+  });
+  return true;
+}

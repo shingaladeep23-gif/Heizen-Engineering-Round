@@ -5,7 +5,11 @@ import type { Choice, PricedDish } from '@fernleaf/shared';
 export type LineInput = {
   dishId: number;
   quantity: number;
-  combos: { quantity: number; optionIds: number[] }[];
+  combos: {
+    quantity: number;
+    optionIds: number[];
+    sizes?: { optionId: number; sizeId: number }[];
+  }[];
 };
 
 export type BuiltLine = {
@@ -35,7 +39,10 @@ export class RuleError extends Error {
  * - every combination satisfies every required group, within max choices,
  *   using only options the dish offers
  * - no two combinations on a line have the same choices (one prep unit each)
- * Price of a combination = (dish price + chosen option prices) x quantity.
+ * - in a group with portions, each chosen option is in one of the group's
+ *   sizes (the first, if none was given)
+ * Price of a combination = (dish price + chosen option prices, each with its
+ * size's extra charge) x quantity.
  */
 export function buildLines(menu: Map<number, PricedDish>, lines: LineInput[]) {
   const built: BuiltLine[] = [];
@@ -68,6 +75,8 @@ export function buildLines(menu: Map<number, PricedDish>, lines: LineInput[]) {
     const combos = line.combos.map((combo, j) => {
       const comboField = `${field}.combos.${j}`;
       const picked = new Set(combo.optionIds);
+      // Sizes sent for options that weren't chosen are simply ignored.
+      const sizeOf = new Map((combo.sizes ?? []).map((s) => [s.optionId, s.sizeId]));
       if (picked.size !== combo.optionIds.length) {
         throw new RuleError(comboField, `${dish.name}: the same option is chosen twice`);
       }
@@ -85,12 +94,26 @@ export function buildLines(menu: Map<number, PricedDish>, lines: LineInput[]) {
           );
         }
         for (const option of inGroup) {
-          choices.push({
+          const choice: Choice = {
             groupName: group.name,
             optionId: option.id,
             optionName: option.name,
             price: option.price,
-          });
+          };
+          if (group.sizes.length > 0) {
+            const sizeId = sizeOf.get(option.id) ?? group.sizes[0].id;
+            const size = option.sizes.find((s) => s.id === sizeId);
+            if (!size) {
+              throw new RuleError(
+                comboField,
+                `${dish.name}: "${group.name}" doesn't sell ${option.name} in that size`,
+              );
+            }
+            choice.size = size;
+          } else if (sizeOf.has(option.id)) {
+            throw new RuleError(comboField, `${dish.name}: ${option.name} doesn't come in sizes`);
+          }
+          choices.push(choice);
         }
       }
       if (choices.length !== picked.size) {
@@ -100,7 +123,11 @@ export function buildLines(menu: Map<number, PricedDish>, lines: LineInput[]) {
         );
       }
 
-      const key = [...picked].sort((a, b) => a - b).join(',');
+      // The same options in another size are a different combination (and prep unit).
+      const key = choices
+        .map((c) => `${c.optionId}:${c.size?.id ?? ''}`)
+        .sort()
+        .join(',');
       if (seenCombos.has(key)) {
         throw new RuleError(
           comboField,
@@ -109,7 +136,8 @@ export function buildLines(menu: Map<number, PricedDish>, lines: LineInput[]) {
       }
       seenCombos.add(key);
 
-      const unitPrice = dish.price + choices.reduce((sum, choice) => sum + choice.price, 0);
+      const unitPrice =
+        dish.price + choices.reduce((sum, c) => sum + c.price + (c.size?.extra ?? 0), 0);
       return { quantity: combo.quantity, unitPrice, total: unitPrice * combo.quantity, choices };
     });
 

@@ -6,7 +6,13 @@ const money = z.int('Must be a whole number of paise').min(0, "Can't be negative
 const ids = z.array(z.int()).default([]);
 
 // Admin-managed reference lists (spec 4.1). Packaging is here too, same pattern.
-export const LIST_KINDS = ['allergens', 'dietary-tags', 'stations', 'packaging-types'] as const;
+export const LIST_KINDS = [
+  'allergens',
+  'dietary-tags',
+  'stations',
+  'packaging-types',
+  'portion-sizes',
+] as const;
 export type ListKind = (typeof LIST_KINDS)[number];
 export type ListItem = { id: number; name: string };
 export type Lists = Record<ListKind, ListItem[]>;
@@ -18,6 +24,12 @@ export const optionSchema = z.object({
   active: z.boolean().default(true),
   allergenIds: ids,
   dietaryTagIds: ids,
+  // Portions [Should]: the sizes this option comes in, each with an extra
+  // charge on top of its price (the default tier's; other tiers scale it).
+  sizes: z
+    .array(z.object({ sizeId: z.int(), extraCharge: money }))
+    .default([])
+    .refine((list) => new Set(list.map((s) => s.sizeId)).size === list.length, 'Each size once'),
 });
 export type OptionInput = z.input<typeof optionSchema>;
 
@@ -27,6 +39,8 @@ export const optionGroupSchema = z
     required: z.boolean(),
     maxChoices: z.int().min(1, 'At least 1'),
     optionIds: z.array(z.int()).min(1, 'Pick at least one option'),
+    // Sizes the group sells its options in, in order; empty = no portions.
+    sizeIds: z.array(z.int()).default([]),
   })
   .refine((g) => g.maxChoices <= g.optionIds.length, {
     message: "Can't allow more choices than there are options",
@@ -35,6 +49,10 @@ export const optionGroupSchema = z
   .refine((g) => new Set(g.optionIds).size === g.optionIds.length, {
     message: 'Each option can only be listed once',
     path: ['optionIds'],
+  })
+  .refine((g) => new Set(g.sizeIds).size === g.sizeIds.length, {
+    message: 'Each size can only be listed once',
+    path: ['sizeIds'],
   });
 
 export const dishSchema = z.object({

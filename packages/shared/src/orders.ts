@@ -31,6 +31,9 @@ export const orderSchema = z.object({
             z.object({
               quantity: z.int().min(1, 'At least 1'),
               optionIds: z.array(z.int()).default([]),
+              // A size for each option in a group with portions. Left out,
+              // the group's first size is used.
+              sizes: z.array(z.object({ optionId: z.int(), sizeId: z.int() })).default([]),
             }),
           )
           .min(1, 'Add at least one combination'),
@@ -51,7 +54,13 @@ export type DeliveryOverride = z.infer<typeof deliveryOverrideSchema>;
 export const rejectSchema = z.object({ reason: z.string().trim().min(3, 'Say why') });
 export const cutoffRunSchema = z.object({ date: day });
 
-export type Choice = { groupName: string; optionId: number; optionName: string; price: number };
+export type Choice = {
+  groupName: string;
+  optionId: number;
+  optionName: string;
+  price: number;
+  size?: { id: number; name: string; extra: number }; // only in groups with portions
+};
 
 export type OrderListItem = {
   id: number;
