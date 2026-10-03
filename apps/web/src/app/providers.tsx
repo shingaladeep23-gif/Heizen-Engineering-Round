@@ -1,8 +1,8 @@
 'use client';
 
 import { MantineProvider } from '@mantine/core';
-import { Notifications } from '@mantine/notifications';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { Notifications, notifications } from '@mantine/notifications';
+import { QueryCache, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useState, type ReactNode } from 'react';
 import { ApiError } from '@/lib/api';
 
@@ -12,6 +12,14 @@ export function Providers({ children }: { children: ReactNode }) {
   const [queryClient] = useState(
     () =>
       new QueryClient({
+        // Any page whose data fails to load says so, instead of looking empty.
+        // (401 is left out: the layout already sends you to the login page.)
+        queryCache: new QueryCache({
+          onError: (error) => {
+            if (error instanceof ApiError && error.status === 401) return;
+            notifications.show({ color: 'red', message: `Couldn't load: ${error.message}` });
+          },
+        }),
         defaultOptions: {
           queries: {
             retry: (failures, error) =>
