@@ -11,6 +11,27 @@ const db = new PrismaClient({
 const todayIST = () => new Date(Date.now() + 330 * 60_000).toISOString().slice(0, 10);
 
 /**
+ * A delivery time on `day` that no order of this company has yet, so a test's
+ * drop is its own (the local database keeps every earlier run's orders).
+ * Picked at random from the first hour or so of free minutes from `fromMinute`,
+ * so tests running side by side rarely pick the same one.
+ */
+export async function freeTime(companyId: number, day: string, fromMinute = 0) {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const orders = await db.order.findMany({
+    where: { companyId, deliveryDate: new Date(day) },
+    select: { deliveryTime: true },
+  });
+  const taken = new Set(orders.map((o) => o.deliveryTime));
+  const free: string[] = [];
+  for (let m = fromMinute; m < 24 * 60; m++) {
+    const t = `${pad(Math.floor(m / 60))}:${pad(m % 60)}`;
+    if (!taken.has(t)) free.push(t);
+  }
+  return free.length ? free[Math.floor(Math.random() * Math.min(free.length, 60))] : '23:59';
+}
+
+/**
  * A cooked order for today, ready to go and out for delivery with the given
  * driver. For Priya Raman unless another employee is named by id, so a test
  * can keep its drops to its own company.
@@ -23,27 +44,14 @@ export async function todayOutForDelivery(driverEmail: string | null, employeeId
     where: employeeId ? { id: employeeId } : { name: 'Priya Raman' },
     include: { company: true },
   });
-  // A time later today that no other order of this company has yet, so the
-  // drop is ours alone and still on time. Never past 23:59, so a late-night
-  // run doesn't wrap into tomorrow (it used to pin every one to 23:59, which
-  // put several tests' orders into one drop).
-  const pad = (n: number) => String(n).padStart(2, '0');
+  // Later today, so it's still on time, and never past 23:59, so a
+  // late-night run doesn't wrap into tomorrow.
   const ist = new Date(Date.now() + 330 * 60_000);
-  const taken = new Set(
-    (
-      await db.order.findMany({
-        where: { companyId: employee.companyId, deliveryDate: new Date(todayIST()) },
-        select: { deliveryTime: true },
-      })
-    ).map((o) => o.deliveryTime),
+  const time = await freeTime(
+    employee.companyId,
+    todayIST(),
+    ist.getUTCHours() * 60 + ist.getUTCMinutes() + 2,
   );
-  const free: string[] = [];
-  for (let m = ist.getUTCHours() * 60 + ist.getUTCMinutes() + 2; m < 24 * 60; m++) {
-    const t = `${pad(Math.floor(m / 60))}:${pad(m % 60)}`;
-    if (!taken.has(t)) free.push(t);
-  }
-  // Somewhere in the next free hour or so, at random, so parallel tests rarely pick the same.
-  const time = free.length ? free[Math.floor(Math.random() * Math.min(free.length, 60))] : '23:59';
   const now = new Date();
   const order = await db.order.create({
     data: {

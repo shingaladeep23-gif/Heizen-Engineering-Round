@@ -1,11 +1,9 @@
 import { expect, test } from '@playwright/test';
-import { todayOutForDelivery } from './db';
+import { freeTime, todayOutForDelivery } from './db';
 import { apiSignIn, createOrder, isLive, LOCAL_ONLY, lockedDate, signIn } from './helpers';
 
-// A random delivery time, so each test almost always gets a drop of its own.
-const pad = (n: number) => String(n).padStart(2, '0');
-const uniqueTime = () =>
-  `${pad(Math.floor(Math.random() * 24))}:${pad(Math.floor(Math.random() * 60))}`;
+// A delivery time no other Acme order has that day, so each test gets a drop of its own.
+const ACME = 1;
 test.describe('dispatch board', () => {
   test.skip(isLive, LOCAL_ONLY);
 
@@ -13,7 +11,7 @@ test.describe('dispatch board', () => {
     page,
     request,
   }) => {
-    const time = uniqueTime();
+    const time = await freeTime(ACME, lockedDate());
     await apiSignIn(request, 'admin@test.com');
     // Priya Raman may change the time; both orders are for Acme HQ at the same time.
     const a = await createOrder(request, { deliveryDate: lockedDate(), deliveryTime: time });
@@ -48,7 +46,7 @@ test.describe('dispatch board', () => {
   });
 
   test('steps cannot be skipped or repeated', async ({ request }) => {
-    const time = uniqueTime();
+    const time = await freeTime(ACME, lockedDate());
     await apiSignIn(request, 'admin@test.com');
     const order = await createOrder(request, { deliveryDate: lockedDate(), deliveryTime: time });
     const drop = { companyId: 1, addressId: 1, date: lockedDate(), time };

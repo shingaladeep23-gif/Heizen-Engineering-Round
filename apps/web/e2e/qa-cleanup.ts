@@ -16,7 +16,32 @@ import { PrismaClient } from '@prisma/client';
 
 export const QA_DOMAIN = 'fernleaf-qa.in';
 
-export async function removeQaData(databaseUrl: string) {
+/**
+ * Removes the test data, trying again if the database can't be reached for
+ * a moment (a network blip, or Neon waking up). Each try is one transaction,
+ * so a failed one leaves nothing half done and the next simply starts over.
+ * If every try fails it says so loudly; the next live run also clears
+ * leftovers before it starts.
+ */
+export async function removeQaData(databaseUrl: string, tries = 5) {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return await removeOnce(databaseUrl);
+    } catch (error) {
+      const why = String(error).split(/\r?\n/)[0];
+      if (attempt >= tries) {
+        throw new Error(
+          `Couldn't remove the test data from the live site after ${tries} tries (${why}). ` +
+            'Run the live checks again, or call removeQaData(), to clear it.',
+        );
+      }
+      console.log(`Cleanup try ${attempt} failed (${why}); trying again in ${attempt * 5} s`);
+      await new Promise((resolve) => setTimeout(resolve, attempt * 5_000));
+    }
+  }
+}
+
+async function removeOnce(databaseUrl: string) {
   const db = new PrismaClient({ datasourceUrl: databaseUrl });
   try {
     const removed = await db.$transaction(
