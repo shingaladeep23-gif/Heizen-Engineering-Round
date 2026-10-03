@@ -3,6 +3,8 @@ import { APP_FILTER } from '@nestjs/core';
 import { ScheduleModule } from '@nestjs/schedule';
 import { AppController } from './app.controller.js';
 import { AuthModule } from './auth/auth.module.js';
+import { BillingController } from './billing/billing.controller.js';
+import { BillingService } from './billing/billing.service.js';
 import { CatalogueController } from './catalogue/catalogue.controller.js';
 import { CompaniesController } from './companies/companies.controller.js';
 import { DispatchController } from './dispatch/dispatch.controller.js';
@@ -31,6 +33,7 @@ import { StaffController } from './staff/staff.controller.js';
     OrdersController,
     KitchenController,
     DispatchController,
+    BillingController,
   ],
   providers: [
     DemoDataService,
@@ -38,6 +41,7 @@ import { StaffController } from './staff/staff.controller.js';
     OrdersService,
     KitchenService,
     DispatchService,
+    BillingService,
     { provide: APP_FILTER, useClass: PrismaErrorFilter },
   ],
 })

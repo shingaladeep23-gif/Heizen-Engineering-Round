@@ -28,6 +28,7 @@ import {
   type Calendar,
   type Day,
 } from './calendar.js';
+import { creditLeft } from '../billing/billing-rules.js';
 import { buildLines, RuleError } from './order-rules.js';
 
 type OrderBody = z.output<typeof orderSchema>;
@@ -286,16 +287,17 @@ export class OrdersService {
   }
 
   // D7: an invoice never changes, so money taken back after invoicing becomes
-  // a credit that lands on the company's next invoice.
+  // a credit that lands on the company's next invoice. Only what's left after
+  // any earlier credits (e.g. a short delivery) is credited.
   private async creditIfInvoiced(
     order: { id: number; invoiceId: number | null; total: number },
     reason: string,
   ) {
-    if (order.invoiceId) {
-      await this.db.adjustment.create({
-        data: { orderId: order.id, amount: -order.total, reason },
-      });
-    }
+    if (!order.invoiceId) return;
+    const earlier = await this.db.adjustment.findMany({ where: { orderId: order.id } });
+    const left = creditLeft(order.total, earlier);
+    if (left > 0)
+      await this.db.adjustment.create({ data: { orderId: order.id, amount: -left, reason } });
   }
 
   /** Admin override of delivery details after confirmation (spec 4.6). */

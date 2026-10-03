@@ -23,8 +23,9 @@ import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useState, type ReactNode } from 'react';
+import { MoneyInput } from '@/components/MoneyInput';
 import { valuesFromOrder } from '@/components/OrderForm';
-import { api, useAction, useLists } from '@/lib/api';
+import { api, useAction, useCan, useLists } from '@/lib/api';
 import { formatDateTime, formatDay, formatTime, STATUS_COLORS, statusLabel } from '@/lib/format';
 
 const Field = ({ label, children }: { label: string; children: ReactNode }) => (
@@ -101,7 +102,9 @@ export default function OrderPage() {
     queryKey: ['order', id],
     queryFn: () => api<OrderDetail>(`/orders/${id}`),
   });
-  const [dialog, setDialog] = useState<'reject' | 'delivery' | 'cancel' | null>(null);
+  const [dialog, setDialog] = useState<'reject' | 'delivery' | 'cancel' | 'credit' | null>(null);
+  const canBill = useCan('billing.manage');
+  const [creditAmount, setCreditAmount] = useState<number | null>(null);
   const [reason, setReason] = useState('');
   const close = () => setDialog(null);
   const done = { invalidate: ['order', 'orders'], onSuccess: close };
@@ -121,6 +124,10 @@ export default function OrderPage() {
   const completeKitchen = useAction(
     () => api(`/kitchen/orders/${id}/complete`, { method: 'POST' }),
     { success: 'Every unit marked cooked', ...done },
+  );
+  const credit = useAction(
+    () => api(`/billing/orders/${id}/credit`, { body: { amount: creditAmount ?? 0, reason } }),
+    { success: 'Credit recorded', ...done },
   );
   const reject = useAction(() => api(`/orders/${id}/reject`, { body: { reason } }), {
     success: 'Order rejected',
@@ -163,6 +170,11 @@ export default function OrderPage() {
               onClick={() => completeKitchen.mutate(undefined)}
             >
               Mark all cooked
+            </Button>
+          )}
+          {canBill && ['CONFIRMED', 'DELIVERED'].includes(o.status) && (
+            <Button variant="light" onClick={() => setDialog('credit')}>
+              Credit short delivery
             </Button>
           )}
           {o.can.reject && (
@@ -330,6 +342,24 @@ export default function OrderPage() {
             onClick={() => reject.mutate(undefined)}
           >
             Reject order
+          </Button>
+        </Stack>
+      </Modal>
+      <Modal opened={dialog === 'credit'} onClose={close} title={`Credit order #${o.id}`}>
+        <Stack>
+          <Text size="sm">
+            For an order that turned out short. The credit comes off the company&apos;s next
+            invoice; invoices already sent never change.
+          </Text>
+          <MoneyInput label="Amount to credit" value={creditAmount} onChange={setCreditAmount} />
+          <Textarea
+            label="Reason"
+            placeholder="e.g. 2 bowls missing from the drop"
+            value={reason}
+            onChange={(e) => setReason(e.currentTarget.value)}
+          />
+          <Button loading={credit.isPending} onClick={() => credit.mutate(undefined)}>
+            Record credit
           </Button>
         </Stack>
       </Modal>

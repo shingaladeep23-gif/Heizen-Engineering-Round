@@ -1,3 +1,4 @@
+export * from './billing.js';
 export * from './catalogue.js';
 export * from './dispatch.js';
 export * from './kitchen.js';
