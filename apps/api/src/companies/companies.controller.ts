@@ -1,5 +1,5 @@
 import { Body, Controller, Get, Param, ParseIntPipe, Post, Put } from '@nestjs/common';
-import { companySchema, employeeSchema } from '@fernleaf/shared';
+import { companySchema, employeeImportSchema, employeeSchema } from '@fernleaf/shared';
 import type { z } from 'zod';
 import { Can } from '../auth/auth.guard.js';
 import { PrismaService } from '../prisma.service.js';
@@ -38,6 +38,15 @@ export class CompaniesController {
     @Body(new ZodPipe(companySchema)) input: z.output<typeof companySchema>,
   ) {
     return this.companies.save(id, input);
+  }
+
+  @Post('companies/:id/employees/import')
+  @Can('companies.manage')
+  importEmployees(
+    @Param('id', ParseIntPipe) id: number,
+    @Body(new ZodPipe(employeeImportSchema)) { csv }: { csv: string },
+  ) {
+    return this.companies.importEmployees(id, csv);
   }
 
   @Get('employees')

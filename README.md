@@ -278,26 +278,25 @@ Just their own drops for **today**, in time order, with the address (a map link)
 
 ## What I built, what I skipped, and why
 
-I did the [Must] items properly first, then went over them again with tests, rather than adding the [Should] items.
+I did the [Must] items properly first and went over them again with tests. With the time left, I added one [Should] item (CSV import) and skipped the other (portions).
 
 **Built (all [Must] items):**
 - Catalogue: dishes, options, option groups with ordering, required/optional and max choices; admin-managed allergens, dietary tags, stations and packaging; dishes deactivated, never deleted.
 - Menu: ordered categories and items, active flags, per-company hiding, secret categories, and a preview as any employee.
 - Pricing: named tiers, a default tier, company tiers, derived tiers (cost × or tier ×) with overrides, rounding up to 5 paise, and a whole-tier grid that highlights missing prices.
 - Companies: domains (unique, no public domains), addresses, billing contact, owner, calendar and holidays, delivery defaults, tier, hidden items.
-- Employees: permission flags, allergies, diet, moving companies.
+- Employees: permission flags, allergies, diet, moving companies, and **CSV import [Should]**: good rows are imported, and every bad row is reported with its line number and reason (wrong domain, already an employee, unknown allergy, a duplicate in the file, and so on), so the file is never rejected as a whole.
 - Orders: drafts, placing, editing and cancelling before the cut-off, admin-only after it, cut-off processing (automatic, idempotent, and manually triggerable), a searchable and filterable paginated list, a detail page with breakdown and timeline, admin delivery overrides, rejection.
 - Kitchen board, dispatch board, driver view, billing with credits, settings, and four dashboards.
 - Server-side permissions throughout, the live site with the four test accounts, and self-refreshing demo data.
 
 **Skipped:**
 - **Portions [Should]** (sizes like regular/large on an option group). It touches the schema, pricing, the order form and the kitchen board. I'd rather every [Must] be right than have portions half-done. The model has room for it: a `PortionSize` list plus a size on each group and on each combination choice.
-- **CSV employee import [Should].** Same reason: it was next in line if time allowed.
 - **Renaming reference list items** (allergens and the like). Add and delete only, because nothing needed rename yet.
 - Everything in section 5 (payments, exports, notifications, audit logs, tax, fees, coupons and so on), as instructed.
 
 **What I'd do next with more time:**
-1. Portions, then CSV import with row-level error reporting.
+1. Portions.
 2. A real audit trail: who changed what. The timeline knows *when* but not *who*.
 3. Store delivery photos in object storage instead of the database.
 4. Kitchen board: a per-station "cook screen" mode with bigger buttons, and push updates instead of polling every 30 s.
@@ -339,14 +338,15 @@ I did the [Must] items properly first, then went over them again with tests, rat
 
 ## Tests
 
-The spec asked for tests on the rules most likely to break. Those are the pure-function unit tests (Vitest, **46 tests** in `apps/api/src/**/*.spec.ts`):
+The spec asked for tests on the rules most likely to break. Those are the pure-function unit tests (Vitest, **49 tests** in `apps/api/src/**/*.spec.ts`):
 - **cut-off calculation:** the spec's own Wednesday → Monday 16:00 example, weekends, kitchen holidays, same-day cut-off, and "today in IST" while UTC is still on yesterday
 - **pricing resolution:** typed, derived from cost and from a tier, overrides, missing base, zero cost, rounding with 1.15 (which floats can't hold exactly)
 - **combination counting:** the spec's 6 + 4 = 10 example, quantities that don't add up, a skipped required group, too many choices, unknown options, duplicate combinations, minimum quantity
 - **invoicing:** billable statuses, invoice totals with credits, the credit cap
 - kitchen unit states and dispatch step order
+- the CSV parser and import rules (quoted commas, Windows line endings, every kind of bad row)
 
-**Playwright** (**65 tests** in `apps/web/e2e`) drives a real browser against **production builds** of both apps and a real Postgres. It covers:
+**Playwright** (**66 tests** in `apps/web/e2e`) drives a real browser against **production builds** of both apps and a real Postgres. It covers:
 - each role's sign-in and landing page
 - server-side 403s for every role on things they shouldn't touch
 - creating a dish
@@ -359,7 +359,7 @@ The spec asked for tests on the rules most likely to break. Those are the pure-f
 - billing with credits
 - companies, employees and settings
 
-**A production journey** (`e2e/production.spec.ts`, **18 tests**) runs only against the live site and walks the whole business in order:
+**A production journey** (`e2e/production.spec.ts`, **19 tests**) runs only against the live site and walks the whole business in order:
 - the catalogue screens and the menu preview
 - placing an order through the form with two combinations
 - draft → place → edit → cancel
@@ -368,7 +368,7 @@ The spec asked for tests on the rules most likely to break. Those are the pure-f
 - the driver delivering it on a phone with a note and a photo
 - invoicing it, checking the stored total, and marking it paid
 - double invoicing refused, a short-delivery credit, a credit-only invoice, and cancelling an invoiced order
-- simultaneous cancels, search and filters, the cut-off run, every dashboard, the company and settings screens, and the permission matrix
+- simultaneous cancels, search and filters, the cut-off run, every dashboard, the company and settings screens, a CSV employee import, and the permission matrix
 
 It only creates data for one internal company, **"Fernleaf QA (test client)"**, so the demo companies stay as they are. Running it found two real problems that local tests couldn't: transactions timing out on the hosted database, and pages showing nothing when a request failed. Both are fixed.
 

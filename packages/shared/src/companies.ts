@@ -119,3 +119,12 @@ export type CompanyDetail = Required<Omit<CompanyInput, 'holidays'>> & {
     dietaryIds: number[];
   }[];
 };
+
+// CSV import of employees: the file's text. Row problems come back per row.
+export const employeeImportSchema = z.object({
+  csv: z.string().min(1, 'The file is empty').max(1_000_000, 'The file is too big (1 MB max)'),
+});
+export type ImportResult = {
+  created: number;
+  errors: { row: number; email: string; problems: string[] }[];
+};

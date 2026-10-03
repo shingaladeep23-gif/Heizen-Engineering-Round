@@ -30,10 +30,11 @@ import {
 } from '@mantine/core';
 import { TimeInput } from '@mantine/dates';
 import { useForm } from '@mantine/form';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useParams, useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { Holidays, WorkingDays } from '@/components/CalendarInputs';
+import { EmployeeImport } from '@/components/EmployeeImport';
 import { Waiting } from '@/components/Waiting';
 import { api, useAction, useCan, useLists } from '@/lib/api';
 
@@ -169,6 +170,13 @@ function CompanyForm({
   const menu = useQuery({ queryKey: ['menu'], queryFn: () => api<Category[]>('/menu/categories') });
   const form = useForm<Form>({ initialValues: initial });
   const [editing, setEditing] = useState<Employee | 'new' | null>(null);
+  const [importing, setImporting] = useState(false);
+  const queryClient = useQueryClient();
+  const closeImport = () => {
+    setImporting(false);
+    queryClient.invalidateQueries({ queryKey: ['company'] }); // now show the new employees
+    queryClient.invalidateQueries({ queryKey: ['employees'] });
+  };
 
   const save = useAction(
     (values: Form) =>
@@ -376,9 +384,14 @@ function CompanyForm({
           <Group justify="space-between" mb="xs">
             <Title order={4}>Employees ({employees.length})</Title>
             {canEdit && (
-              <Button variant="light" size="compact-sm" onClick={() => setEditing('new')}>
-                Add employee
-              </Button>
+              <Group gap="xs">
+                <Button variant="default" size="compact-sm" onClick={() => setImporting(true)}>
+                  Import CSV
+                </Button>
+                <Button variant="light" size="compact-sm" onClick={() => setEditing('new')}>
+                  Add employee
+                </Button>
+              </Group>
             )}
           </Group>
           <Table highlightOnHover>
@@ -419,6 +432,14 @@ function CompanyForm({
                 onClose={() => setEditing(null)}
               />
             )}
+          </Modal>
+          <Modal
+            opened={importing}
+            onClose={closeImport}
+            title="Import employees from CSV"
+            size="lg"
+          >
+            <EmployeeImport companyId={id} domains={initial.domains} />
           </Modal>
         </Card>
       )}

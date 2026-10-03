@@ -84,6 +84,44 @@ test.describe('companies and employees', () => {
   });
 });
 
+test.describe('employee CSV import', () => {
+  test.skip(isLive, LOCAL_ONLY);
+
+  test('imports the good rows and lists every bad row with a reason', async ({ page }) => {
+    const n = Date.now();
+    const csv = [
+      'name,email,can_choose_address,can_change_time,can_change_packaging,allergies,dietary',
+      `Ravi Shankar,ravi.${n}@kaveri.co.in,yes,no,no,Peanuts;Dairy,Vegetarian`,
+      `"Hegde, Usha ${n}",usha.${n}@kaveri.co.in,,,,,Jain`,
+      `Wrong Domain,someone.${n}@gmail.com,,,,,`,
+      `,noname.${n}@kaveri.co.in,maybe,,,,`,
+      `Taken,harish.gowda@kaveri.co.in,,,,,`,
+    ].join('\n');
+    await signIn(page, 'admin@test.com');
+    await page.goto('/companies/3'); // Kaveri Consulting
+    await page.getByRole('button', { name: 'Import CSV' }).click();
+    await page.locator('input[type="file"]').setInputFiles({
+      name: 'employees.csv',
+      mimeType: 'text/csv',
+      buffer: Buffer.from(csv),
+    });
+    await expect(page.getByText('Imported 2 employee(s). 3 row(s) were skipped:')).toBeVisible();
+    await expect(page.getByRole('dialog').getByRole('row', { name: /gmail.com/ })).toContainText(
+      'Email must be at @kaveri.co.in',
+    );
+    await expect(page.getByRole('dialog').getByRole('row', { name: /noname/ })).toContainText(
+      'Name is missing',
+    );
+    await expect(page.getByRole('dialog').getByRole('row', { name: /harish.gowda/ })).toContainText(
+      'Already an employee',
+    );
+
+    await page.keyboard.press('Escape');
+    await expect(page.getByRole('cell', { name: `ravi.${n}@kaveri.co.in` })).toBeVisible();
+    await expect(page.getByRole('cell', { name: `Hegde, Usha ${n}` })).toBeVisible(); // quoted comma kept
+  });
+});
+
 test.describe('settings', () => {
   test.skip(isLive, LOCAL_ONLY);
 
@@ -119,4 +157,8 @@ test('only admins change companies and settings', async ({ request }) => {
   expect((await request.get(`/api/companies/${ACME}`)).status()).toBe(200); // can look
   expect((await request.put(`/api/companies/${ACME}`, { data: {} })).status()).toBe(403);
   expect((await request.get('/api/settings')).status()).toBe(403);
+  const csv = { csv: 'name,email\nX,x@acmeanalytics.in' };
+  expect(
+    (await request.post(`/api/companies/${ACME}/employees/import`, { data: csv })).status(),
+  ).toBe(403);
 });

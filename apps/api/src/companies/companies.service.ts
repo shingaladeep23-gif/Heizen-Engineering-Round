@@ -8,13 +8,15 @@ import {
   can,
   type CompanyDetail,
   type CompanyRow,
+  type ImportResult,
   type companySchema,
   type employeeSchema,
 } from '@fernleaf/shared';
-import type { Prisma } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import type { z } from 'zod';
 import { PrismaService } from '../prisma.service.js';
 import { dayOf } from '../orders/calendar.js';
+import { checkRows } from './employee-import.js';
 
 type CompanyBody = z.output<typeof companySchema>;
 type EmployeeBody = z.output<typeof employeeSchema>;
@@ -273,5 +275,52 @@ export class CompaniesService {
           },
         })
       : this.db.employee.update({ where: { id }, data });
+  }
+
+  /** Bulk-adds employees from a CSV file. Good rows go in; bad rows are reported, not fatal. */
+  async importEmployees(companyId: number, csv: string): Promise<ImportResult> {
+    const company = await this.db.company.findUnique({
+      where: { id: companyId },
+      include: { domains: true },
+    });
+    if (!company) throw new NotFoundException({ message: 'Company not found' });
+    const [employees, allergens, tags] = await Promise.all([
+      this.db.employee.findMany({ select: { email: true } }),
+      this.db.allergen.findMany(),
+      this.db.dietaryTag.findMany(),
+    ]);
+    const byName = (rows: { id: number; name: string }[]) =>
+      new Map(rows.map((r) => [r.name.toLowerCase(), r.id]));
+    const { rows, errors } = checkRows(csv, {
+      domains: company.domains.map((d) => d.domain),
+      existingEmails: new Set(employees.map((e) => e.email.toLowerCase())),
+      allergens: byName(allergens),
+      dietaryTags: byName(tags),
+    });
+
+    let created = 0;
+    for (const row of rows) {
+      try {
+        await this.db.employee.create({
+          data: {
+            companyId,
+            name: row.name,
+            email: row.email,
+            canChooseAddress: row.canChooseAddress,
+            canChangeTime: row.canChangeTime,
+            canChangePackaging: row.canChangePackaging,
+            allergies: { connect: ids(row.allergyIds) },
+            dietaryPrefs: { connect: ids(row.dietaryIds) },
+          },
+        });
+        created++;
+      } catch (error) {
+        // Someone added the same email at the same moment: report it like any other row.
+        if (!(error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002'))
+          throw error;
+        errors.push({ row: row.row, email: row.email, problems: ['Already an employee'] });
+      }
+    }
+    return { created, errors: errors.sort((a, b) => a.row - b.row) };
   }
 }

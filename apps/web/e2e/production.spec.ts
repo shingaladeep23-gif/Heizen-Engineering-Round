@@ -444,6 +444,27 @@ test.describe('production journey', () => {
     await expect(page.getByLabel('Cut-off time')).toHaveValue(/\d\d:\d\d/);
   });
 
+  test('employees are imported from a CSV file, bad rows reported', async ({ page }) => {
+    const n = Date.now();
+    const csv = [
+      'name,email,can_change_time,allergies',
+      `QA Import ${n},qa.import.${n}@${QA_DOMAIN},yes,Peanuts`,
+      `Outsider,outsider.${n}@gmail.com,,`,
+    ].join('\n');
+    await signIn(page, 'admin@test.com');
+    await page.goto(`/companies/${qa.companyId}`);
+    await page.getByRole('button', { name: 'Import CSV' }).click();
+    await page.locator('input[type="file"]').setInputFiles({
+      name: 'employees.csv',
+      mimeType: 'text/csv',
+      buffer: Buffer.from(csv),
+    });
+    await expect(page.getByText('Imported 1 employee(s). 1 row(s) were skipped:')).toBeVisible();
+    await expect(page.getByRole('dialog').getByRole('row', { name: /gmail.com/ })).toContainText(
+      `Email must be at @${QA_DOMAIN}`,
+    );
+  });
+
   test('each role only reaches its own part of the API', async () => {
     const forbidden: Record<string, [string, string][]> = {
       'kitchen@test.com': [
