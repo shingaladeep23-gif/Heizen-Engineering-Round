@@ -1,0 +1,9 @@
+// The Playwright tests, type-checked on their own (npm run typecheck).
+// They're kept out of the app's tsconfig because the deployed build has no
+// generated Prisma client, and qa-cleanup.ts needs one.
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": { "incremental": false },
+  "include": ["**/*.ts"],
+  "exclude": []
+}
