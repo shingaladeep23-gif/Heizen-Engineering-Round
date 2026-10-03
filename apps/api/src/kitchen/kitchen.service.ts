@@ -19,7 +19,7 @@ export class KitchenService {
    * hundreds of orders stays quick.
    */
   async board(day: Day): Promise<KitchenBoard> {
-    await this.orders.processDueCutoffs();
+    await this.orders.processDueCutoffsSoon();
     const [settings, orders] = await Promise.all([
       this.db.settings.findUniqueOrThrow({ where: { id: 1 } }),
       this.db.order.findMany({

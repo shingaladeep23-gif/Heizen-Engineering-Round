@@ -204,6 +204,7 @@ export class OrdersService {
       return this.db.order.create({
         data: {
           ...data,
+          createdAt: now, // same clock as placedAt, so the timeline is in order
           employeeId: employee.id,
           companyId: employee.companyId,
           placedAt: status === 'DRAFT' ? null : now,
@@ -377,12 +378,23 @@ export class OrdersService {
       distinct: ['deliveryDate'],
       select: { deliveryDate: true },
     });
+    if (pending.length === 0) return;
+    const { settings, calendar } = await this.kitchen(); // once, not once per date
     const now = new Date();
     for (const { deliveryDate } of pending) {
       const day = dayOf(deliveryDate);
-      const cutoffAt = await this.cutoffOf(day);
+      const cutoffAt = cutoffFor(day, calendar, settings.cutoffDays, settings.cutoffTime);
       if (cutoffAt <= now) await this.processDate(day, cutoffAt);
     }
+  }
+
+  // Before a list or board loads. At most once a minute: the timer above
+  // covers the rest, and every check costs database round trips.
+  private lastSweep = 0;
+  async processDueCutoffsSoon() {
+    if (Date.now() - this.lastSweep < 60_000) return;
+    this.lastSweep = Date.now();
+    await this.processDueCutoffs();
   }
 
   /** Manual trigger for a cut-off that has already passed (spec 4.6). */
@@ -397,7 +409,7 @@ export class OrdersService {
   // ---------- Reading ----------
 
   async list(query: OrderQuery): Promise<OrderPage> {
-    await this.processDueCutoffs();
+    await this.processDueCutoffsSoon();
     const where: Prisma.OrderWhereInput = {
       status: query.status,
       companyId: query.companyId,
@@ -444,7 +456,7 @@ export class OrdersService {
   }
 
   async detail(user: User, id: number): Promise<OrderDetail> {
-    await this.processDueCutoffs();
+    await this.processDueCutoffsSoon();
     const order = await this.db.order.findUnique({
       where: { id },
       include: {
@@ -459,9 +471,9 @@ export class OrdersService {
       },
     });
     if (!order) throw new NotFoundException({ message: 'Order not found' });
-    const { settings } = await this.kitchen();
+    const { settings, calendar } = await this.kitchen();
     const day = dayOf(order.deliveryDate);
-    const cutoffAt = await this.cutoffOf(day);
+    const cutoffAt = cutoffFor(day, calendar, settings.cutoffDays, settings.cutoffTime);
     const cutoffPassed = cutoffAt <= new Date();
     const plan = plannedTimes(
       day,

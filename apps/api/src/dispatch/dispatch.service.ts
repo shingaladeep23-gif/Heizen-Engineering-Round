@@ -39,7 +39,7 @@ export class DispatchService {
 
   /** Confirmed orders for a date, grouped into drops, in delivery-time order. */
   async drops(day: Day, driverId?: number): Promise<Drop[]> {
-    await this.orders.processDueCutoffs();
+    await this.orders.processDueCutoffsSoon();
     const [settings, orders] = await Promise.all([
       this.db.settings.findUniqueOrThrow({ where: { id: 1 } }),
       this.db.order.findMany({

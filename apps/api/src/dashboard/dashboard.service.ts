@@ -26,7 +26,7 @@ export class DashboardService {
   ) {}
 
   async admin(now = new Date()): Promise<AdminDashboard> {
-    await this.orders.processDueCutoffs();
+    await this.orders.processDueCutoffsSoon();
     const today = todayIST(now);
     const date = (day: string) => new Date(day);
     const billable = { in: [...BILLABLE] };
