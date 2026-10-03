@@ -15,23 +15,24 @@ import {
   type Page,
 } from '@playwright/test';
 import { todayOutForDelivery } from './db';
-import {
-  isLive,
-  LOCAL_ONLY,
-  lockedDate,
-  nextSaturday,
-  openDate,
-  PASSWORD,
-  signIn,
-} from './helpers';
+import { isLive, lockedDate, nextSaturday, openDate, PASSWORD, signIn } from './helpers';
 
+// Everything is named the way qa-cleanup.ts recognises test data, so on the
+// live site it's all removed again when the run ends.
 const RUN = Date.now().toString(36);
-const COMPANY = `Screens Co ${RUN}`;
-const DOMAIN = `screens-${RUN}.test`;
-const TIER = `Ui Tier ${RUN}`;
-const DISH = `Ui Thali ${RUN}`;
-const CATEGORY = `Ui Specials ${RUN}`;
-const DRIVER = `Ui Driver ${RUN}`;
+const COMPANY = `Fernleaf QA Screens ${RUN}`;
+const DOMAIN = `screens-${RUN}.fernleaf-qa.in`;
+const TIER = `QA Ui Tier ${RUN}`;
+const DISH = `QA Ui Thali ${RUN}`;
+const CATEGORY = `QA Ui Specials ${RUN}`;
+const DRIVER = `QA Ui Driver ${RUN}`;
+const BASE = process.env.BASE_URL ?? 'http://localhost:3000';
+// A date whose cut-off has passed: the next weekday locally (the local kitchen
+// works Monday to Friday), tomorrow on the live site (it cooks every day).
+const locked = () =>
+  isLive
+    ? new Date(Date.now() + 330 * 60_000 + 86_400_000).toISOString().slice(0, 10)
+    : lockedDate();
 // Earlier runs leave employees with the same names behind, so match the email too.
 const ONE = new RegExp(`^Ui One [(]one@${DOMAIN}`);
 const TWO = new RegExp(`^Ui Two [(]two@${DOMAIN}`);
@@ -99,10 +100,8 @@ async function placeThali(
 test.describe.configure({ mode: 'serial', timeout: 120_000 });
 
 test.describe('every screen, every role', () => {
-  test.skip(isLive, LOCAL_ONLY);
-
   test.beforeAll(async () => {
-    admin = await request.newContext({ baseURL: 'http://localhost:3000' });
+    admin = await request.newContext({ baseURL: BASE });
     await admin.post('/api/auth/login', { data: { email: 'admin@test.com', password: PASSWORD } });
   });
 
@@ -242,7 +241,7 @@ test.describe('every screen, every role', () => {
     await add.click();
     await fieldError(page, 'Already in use');
 
-    const email = `ui.driver.${RUN}@fernleaf.test`;
+    const email = `ui.driver.${RUN}@fernleaf-qa.in`;
     await page.getByLabel('Email').fill(email);
     await add.click();
     await toast(page, 'Staff member added');
@@ -259,7 +258,7 @@ test.describe('every screen, every role', () => {
     }
 
     // Switch off: they can't sign in; switch back on: they can.
-    const tryLogin = await request.newContext({ baseURL: 'http://localhost:3000' });
+    const tryLogin = await request.newContext({ baseURL: BASE });
     const signInAs = () =>
       tryLogin.post('/api/auth/login', { data: { email, password: PASSWORD } });
     // The "updated" toast sits over this column for a few seconds; wait like a person would.
@@ -291,7 +290,7 @@ test.describe('every screen, every role', () => {
   }) => {
     await signIn(page, 'admin@test.com');
     await page.goto('/lists');
-    const name = `Ui Sesame Seed ${RUN}`;
+    const name = `QA Ui Sesame ${RUN}`;
     const input = page.getByLabel('New Allergens');
     const card = page.locator('.mantine-Card-root', { hasText: 'Allergens' }).first();
 
@@ -329,7 +328,7 @@ test.describe('every screen, every role', () => {
     await dialog.getByRole('button', { name: 'Save option' }).click();
     await fieldError(page, 'Required');
 
-    const name = `Ui Pickle ${RUN}`;
+    const name = `QA Ui Pickle ${RUN}`;
     await dialog.getByLabel('Name').fill(name);
     await dialog.getByLabel('Cost price').fill('7.5');
     await choose(dialog.getByRole('combobox', { name: 'Allergens' }), page, ['Mustard']);
@@ -365,7 +364,7 @@ test.describe('every screen, every role', () => {
     await fieldError(page, 'Required'); // name and SKU
 
     await page.getByLabel('Name', { exact: true }).fill(DISH);
-    await page.getByLabel('SKU').fill(`UI-${RUN}`);
+    await page.getByLabel('SKU').fill(`QA-UI-${RUN}`);
     await page.getByLabel('Image link').fill('not a link');
     await page.getByRole('button', { name: 'Save' }).click();
     await fieldError(page, 'Must be a full link');
@@ -414,8 +413,8 @@ test.describe('every screen, every role', () => {
 
     // Another dish with the same SKU is refused.
     await page.goto('/dishes/new');
-    await page.getByLabel('Name', { exact: true }).fill(`Ui Copy ${RUN}`);
-    await page.getByLabel('SKU').fill(`UI-${RUN}`);
+    await page.getByLabel('Name', { exact: true }).fill(`QA Ui Copy ${RUN}`);
+    await page.getByLabel('SKU').fill(`QA-UI-${RUN}`);
     await page.getByRole('button', { name: 'Save' }).click();
     await toast(page, 'already taken');
 
@@ -491,11 +490,11 @@ test.describe('every screen, every role', () => {
 
     // A derived tier: Cost × 2.4, prices shown as "(formula)", overridable.
     await page.getByRole('button', { name: 'New tier' }).click();
-    await dialog.getByLabel('Name').fill(`Ui Cost ${RUN}`);
+    await dialog.getByLabel('Name').fill(`QA Ui Cost ${RUN}`);
     await pick(page, 'How prices are set', 'Cost × a factor');
     await dialog.getByLabel('Factor').fill('2.4');
     await dialog.getByRole('button', { name: 'Save tier' }).click();
-    const derived = page.locator('.mantine-Card-root', { hasText: `Ui Cost ${RUN}` });
+    const derived = page.locator('.mantine-Card-root', { hasText: `QA Ui Cost ${RUN}` });
     await expect(derived).toContainText('Cost × 2.4');
     await derived.click();
     // ₹30 cost × 2.4 = ₹72.
@@ -753,8 +752,8 @@ test.describe('every screen, every role', () => {
     await date.fill(yesterday());
     await expect(page.getByText('That date has already passed')).toBeVisible();
     await expect(place).toBeDisabled();
-    await date.fill(nextSaturday()); // the kitchen works Monday to Friday
-    await expect(page.getByText("The kitchen isn't cooking that day")).toBeVisible();
+    await date.fill(nextSaturday()); // the company's own holiday, set up above
+    await expect(page.getByText(`${COMPANY} isn't open that day`)).toBeVisible();
     await expect(place).toBeDisabled();
 
     await date.fill(openDate());
@@ -863,7 +862,7 @@ test.describe('every screen, every role', () => {
     await signIn(page, 'admin@test.com');
     await page.goto('/orders/new');
     await pick(page, 'Employee', TWO);
-    await page.getByLabel('Delivery date').fill(lockedDate());
+    await page.getByLabel('Delivery date').fill(locked());
     await expect(page.getByText(/The cut-off was .* confirmed straight away/)).toBeVisible();
     await expect(page.getByRole('button', { name: 'Save as draft' })).toHaveCount(0);
 
@@ -999,7 +998,7 @@ test.describe('every screen, every role', () => {
     page,
   }) => {
     // A confirmed order for Ui One (default time and address): two prep units.
-    const kitchenOrder = await placeThali(s.one, lockedDate(), [
+    const kitchenOrder = await placeThali(s.one, locked(), [
       { quantity: 2, base: 'Jeera rice' },
       { quantity: 1, base: 'Brown rice' },
     ]);
@@ -1007,7 +1006,7 @@ test.describe('every screen, every role', () => {
 
     await signIn(page, 'kitchen@test.com');
     await page.goto('/kitchen');
-    await page.getByLabel('Delivery date').fill(lockedDate());
+    await page.getByLabel('Delivery date').fill(locked());
     await page.locator('.mantine-SegmentedControl-root').getByText('Unassigned').click();
     const units = page.locator('tbody tr').filter({ hasText: `#${s.kitchen}` });
     await expect(units).toHaveCount(2);
@@ -1051,7 +1050,7 @@ test.describe('every screen, every role', () => {
   }) => {
     await signIn(page, 'dispatch@test.com');
     await page.goto('/dispatch');
-    await page.getByLabel('Delivery date').fill(lockedDate());
+    await page.getByLabel('Delivery date').fill(locked());
 
     // #confirmed is at Tower A 14:00 (overridden); #kitchen at Tower B 12:15.
     const drop = page.locator(`[data-drop="${COMPANY} 12:15"]`);

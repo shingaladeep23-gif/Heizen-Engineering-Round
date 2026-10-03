@@ -362,7 +362,7 @@ The spec asked for tests on the rules most likely to break. Those are the pure-f
 - billing with credits
 - companies, employees and settings
 
-Within those, **every screen as every role** (`e2e/screens.spec.ts`, 26 tests) works the app only through the browser, the way staff do, with good and bad input:
+Within those, **every screen as every role** (`e2e/screens.spec.ts`, 26 tests) works the app only through the browser, the way staff do, with good and bad input. It runs locally and against the live site (it builds its own company, tier, dish and staff, all marked as test data, which the cleanup removes):
 - each role's menu and landing page, and a clear "no access" on every page a role can't use
 - every form's mistakes coming back next to the right field: sign-in, staff, reference lists, options, dishes and option groups, tiers, menu, companies (public, taken and malformed domains, holidays without a date, limits), employees
 - the order form refusing each kind of bad combination with a message that names the dish and the choice, drafts, placing, editing, cancelling, the cut-off, admin overrides, credits and rejection
@@ -403,7 +403,7 @@ Running it found two real problems that local tests couldn't: transactions timin
 
 **The live checks clean up after themselves.** Everything they create is marked as test data ("Fernleaf QA ..." companies on `fernleaf-qa.in`, and "QA" catalogue items, tiers and staff). Before and after each live run, `e2e/qa-cleanup.ts` deletes exactly those rows in one transaction, so reviewers only ever see the demo data. That needs the database URL (`QA_DATABASE_URL`), and a live run refuses to start without it. It's a test harness talking to the database, not a feature of the app: the app itself never hard-deletes orders or dishes.
 
-A local **pre-commit hook** runs lint, type-check, unit tests and Playwright, and blocks the commit if anything fails. Every commit after the first few setup commits went through it. The same Playwright suite runs against the live site with `BASE_URL=...`; local tests that would change data skip themselves there, and the two live-only files run instead.
+A local **pre-commit hook** runs lint, type-check, unit tests and Playwright, and blocks the commit if anything fails. Every commit after the first few setup commits went through it. The same Playwright suite runs against the live site with `BASE_URL=...`; local tests that would change demo data skip themselves there, and the two live-only files and `screens.spec.ts` run instead.
 
 ---
 
