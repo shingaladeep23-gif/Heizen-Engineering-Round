@@ -94,7 +94,13 @@ export type OrderDetail = {
   cutoffPassed: boolean;
   plan: { dispatchReadyBy: string; kitchenReadyBy: string };
   timeline: { label: string; at: string }[];
-  can: { edit: boolean; cancel: boolean; reject: boolean; override: boolean };
+  can: {
+    edit: boolean;
+    cancel: boolean;
+    reject: boolean;
+    override: boolean;
+    completeKitchen: boolean;
+  };
 };
 
 // What the order form needs to know about an employee on a given date.

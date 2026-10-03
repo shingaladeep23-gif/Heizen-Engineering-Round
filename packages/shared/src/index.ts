@@ -1,4 +1,5 @@
 export * from './catalogue.js';
+export * from './kitchen.js';
 export * from './menu.js';
 export * from './money.js';
 export * from './orders.js';

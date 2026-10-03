@@ -525,6 +525,7 @@ export class OrdersService {
         reject:
           override && ['PLACED', 'CONFIRMED'].includes(order.status) && !order.kitchenStartedAt,
         override: override && order.status === 'CONFIRMED' && !order.outForDeliveryAt,
+        completeKitchen: override && order.status === 'CONFIRMED' && !order.kitchenReadyAt,
       },
     };
   }

@@ -6,6 +6,8 @@ import { AuthModule } from './auth/auth.module.js';
 import { CatalogueController } from './catalogue/catalogue.controller.js';
 import { CompaniesController } from './companies/companies.controller.js';
 import { DemoDataService } from './demo-data/demo-data.service.js';
+import { KitchenController } from './kitchen/kitchen.controller.js';
+import { KitchenService } from './kitchen/kitchen.service.js';
 import { MenuController } from './menu/menu.controller.js';
 import { MenuService } from './menu/menu.service.js';
 import { OrdersController } from './orders/orders.controller.js';
@@ -25,11 +27,13 @@ import { StaffController } from './staff/staff.controller.js';
     MenuController,
     CompaniesController,
     OrdersController,
+    KitchenController,
   ],
   providers: [
     DemoDataService,
     MenuService,
     OrdersService,
+    KitchenService,
     { provide: APP_FILTER, useClass: PrismaErrorFilter },
   ],
 })

@@ -15,6 +15,7 @@ import { api, useMe } from '@/lib/api';
 const NAV: { href: string; label: string; permission?: Permission }[] = [
   { href: '/dashboard', label: 'Dashboard' },
   { href: '/orders', label: 'Orders', permission: 'orders.view' },
+  { href: '/kitchen', label: 'Kitchen board', permission: 'kitchen.view' },
   { href: '/dishes', label: 'Dishes', permission: 'catalogue.view' },
   { href: '/options', label: 'Options', permission: 'catalogue.view' },
   { href: '/menu', label: 'Menu', permission: 'catalogue.view' },

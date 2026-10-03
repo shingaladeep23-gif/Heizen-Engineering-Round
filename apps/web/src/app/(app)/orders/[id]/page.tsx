@@ -118,6 +118,10 @@ export default function OrderPage() {
     success: 'Order cancelled',
     ...done,
   });
+  const completeKitchen = useAction(
+    () => api(`/kitchen/orders/${id}/complete`, { method: 'POST' }),
+    { success: 'Every unit marked cooked', ...done },
+  );
   const reject = useAction(() => api(`/orders/${id}/reject`, { body: { reason } }), {
     success: 'Order rejected',
     ...done,
@@ -150,6 +154,15 @@ export default function OrderPage() {
           {o.can.override && (
             <Button variant="light" onClick={() => setDialog('delivery')}>
               Change delivery
+            </Button>
+          )}
+          {o.can.completeKitchen && (
+            <Button
+              variant="light"
+              loading={completeKitchen.isPending}
+              onClick={() => completeKitchen.mutate(undefined)}
+            >
+              Mark all cooked
             </Button>
           )}
           {o.can.reject && (
