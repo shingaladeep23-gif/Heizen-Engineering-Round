@@ -7,6 +7,7 @@ import {
   Card,
   Checkbox,
   Group,
+  Image,
   MultiSelect,
   NumberInput,
   SegmentedControl,
@@ -124,6 +125,15 @@ export default function DishPage() {
             {...form.getInputProps('imageUrl')}
             value={form.values.imageUrl ?? ''}
           />
+          {form.values.imageUrl && (
+            <Image
+              src={form.values.imageUrl}
+              h={120}
+              w={200}
+              radius="sm"
+              alt="Dish photo preview"
+            />
+          )}
           <SimpleGrid cols={{ base: 1, sm: 4 }}>
             <MoneyInput
               label="Cost price"

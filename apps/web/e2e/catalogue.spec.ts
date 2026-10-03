@@ -28,6 +28,15 @@ test.describe('catalogue', () => {
     await expect(page.getByRole('cell', { name: sku })).toBeVisible();
   });
 
+  test('the dish editor previews the photo link', async ({ page }) => {
+    await signIn(page, 'admin@test.com');
+    await page.goto('/dishes/new');
+    await page
+      .getByLabel('Image link')
+      .fill('https://thumb.wikimedia.org/wikipedia/commons/thumb/8/80/Poha.jpg/330px-Poha.jpg');
+    await expect(page.getByAltText('Dish photo preview')).toBeVisible();
+  });
+
   test('reference lists refuse to delete something still in use', async ({ page }) => {
     test.skip(isLive, LOCAL_ONLY);
     await signIn(page, 'admin@test.com');

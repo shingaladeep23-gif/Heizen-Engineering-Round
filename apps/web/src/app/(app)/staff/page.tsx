@@ -1,6 +1,6 @@
 'use client';
 
-import { ROLES, type Me, type StaffInput } from '@fernleaf/shared';
+import { ROLES, type Me, type Role, type StaffInput } from '@fernleaf/shared';
 import {
   Badge,
   Button,
@@ -9,41 +9,66 @@ import {
   PasswordInput,
   Select,
   Stack,
+  Switch,
   Table,
+  Text,
   TextInput,
   Title,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
-import { notifications } from '@mantine/notifications';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { api, ApiError } from '@/lib/api';
+import { useQuery } from '@tanstack/react-query';
+import { api, useAction, useMe } from '@/lib/api';
 
 type StaffMember = Me & { active: boolean };
 
+function StaffRow({ member, isMe }: { member: StaffMember; isMe: boolean }) {
+  const save = useAction(
+    (changes: { role: Role; active: boolean }) =>
+      api(`/staff/${member.id}`, { method: 'PUT', body: changes }),
+    { success: `${member.name} updated`, invalidate: ['staff'] },
+  );
+  return (
+    <Table.Tr style={{ opacity: member.active ? 1 : 0.5 }}>
+      <Table.Td>
+        {member.name} {isMe && <Badge size="xs">You</Badge>}
+      </Table.Td>
+      <Table.Td>{member.email}</Table.Td>
+      <Table.Td>
+        <Select
+          size="xs"
+          w={130}
+          aria-label={`Role for ${member.email}`}
+          data={[...ROLES]}
+          allowDeselect={false}
+          disabled={isMe}
+          value={member.role}
+          onChange={(role) => role && save.mutate({ role: role as Role, active: member.active })}
+        />
+      </Table.Td>
+      <Table.Td>
+        <Switch
+          aria-label={`${member.email} can sign in`}
+          label={member.active ? 'Active' : 'Switched off'}
+          disabled={isMe}
+          checked={member.active}
+          onChange={(e) => save.mutate({ role: member.role, active: e.currentTarget.checked })}
+        />
+      </Table.Td>
+    </Table.Tr>
+  );
+}
+
 export default function StaffPage() {
-  const queryClient = useQueryClient();
-  const staff = useQuery({
-    queryKey: ['staff'],
-    queryFn: () => api<StaffMember[]>('/staff'),
-  });
+  const { data: me } = useMe();
+  const staff = useQuery({ queryKey: ['staff'], queryFn: () => api<StaffMember[]>('/staff') });
   const form = useForm<StaffInput>({
     initialValues: { name: '', email: '', password: '', role: 'KITCHEN' },
   });
-
-  const create = useMutation({
-    mutationFn: (values: StaffInput) => api<Me>('/staff', { body: values }),
-    onSuccess: (member) => {
-      notifications.show({
-        color: 'green',
-        message: `${member.name} can now sign in`,
-      });
-      form.reset();
-      queryClient.invalidateQueries({ queryKey: ['staff'] });
-    },
-    onError: (error) => {
-      form.setErrors(error instanceof ApiError ? error.fieldErrors : {});
-      notifications.show({ color: 'red', message: error.message });
-    },
+  const create = useAction((values: StaffInput) => api<Me>('/staff', { body: values }), {
+    form,
+    invalidate: ['staff'],
+    onSuccess: () => form.reset(),
+    success: 'Staff member added. They can sign in now.',
   });
 
   return (
@@ -70,23 +95,22 @@ export default function StaffPage() {
         </form>
       </Paper>
 
+      <Text size="sm" c="dimmed">
+        Switching someone off stops them signing in straight away. Nothing they did is lost, and
+        they can be switched back on.
+      </Text>
       <Table striped>
         <Table.Thead>
           <Table.Tr>
             <Table.Th>Name</Table.Th>
             <Table.Th>Email</Table.Th>
             <Table.Th>Role</Table.Th>
+            <Table.Th>Can sign in</Table.Th>
           </Table.Tr>
         </Table.Thead>
         <Table.Tbody>
           {staff.data?.map((member) => (
-            <Table.Tr key={member.id}>
-              <Table.Td>{member.name}</Table.Td>
-              <Table.Td>{member.email}</Table.Td>
-              <Table.Td>
-                <Badge variant="light">{member.role}</Badge>
-              </Table.Td>
-            </Table.Tr>
+            <StaffRow key={member.id} member={member} isMe={member.id === me?.id} />
           ))}
         </Table.Tbody>
       </Table>

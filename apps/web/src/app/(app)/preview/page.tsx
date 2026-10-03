@@ -1,7 +1,18 @@
 'use client';
 
 import { formatMoney, type EmployeeMenu, type PricedDish } from '@fernleaf/shared';
-import { Alert, Badge, Card, Group, Select, SimpleGrid, Stack, Text, Title } from '@mantine/core';
+import {
+  Alert,
+  Badge,
+  Card,
+  Group,
+  Image,
+  Select,
+  SimpleGrid,
+  Stack,
+  Text,
+  Title,
+} from '@mantine/core';
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { api } from '@/lib/api';
@@ -11,6 +22,11 @@ type Employee = { id: number; name: string; email: string; company: { name: stri
 function DishCard({ dish }: { dish: PricedDish }) {
   return (
     <Card withBorder>
+      {dish.imageUrl && (
+        <Card.Section mb="sm">
+          <Image src={dish.imageUrl} h={140} alt={dish.name} />
+        </Card.Section>
+      )}
       <Group justify="space-between" align="flex-start" wrap="nowrap">
         <Text fw={600}>{dish.name}</Text>
         <Text fw={600}>{formatMoney(dish.price)}</Text>

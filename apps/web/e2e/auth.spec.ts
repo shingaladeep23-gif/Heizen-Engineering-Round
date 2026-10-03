@@ -75,7 +75,7 @@ test('an admin can add a staff member, who can then sign in', async ({ page, bro
   await page.getByLabel('Email').fill(email);
   await page.getByLabel('Password', { exact: true }).fill('Test@1234');
   await page.getByRole('button', { name: 'Add staff member' }).click();
-  await expect(page.getByRole('cell', { name: email })).toBeVisible();
+  await expect(page.getByRole('cell', { name: email, exact: true })).toBeVisible();
 
   // Same email again is refused, and the form says why.
   await page.getByLabel('Name').fill('Copy');
@@ -87,4 +87,40 @@ test('an admin can add a staff member, who can then sign in', async ({ page, bro
   const otherPage = await (await browser.newContext()).newPage();
   await signIn(otherPage, email);
   await expect(otherPage.getByRole('heading', { name: 'Kitchen dashboard' })).toBeVisible();
+});
+
+test("an admin changes someone's role and switches their account off", async ({
+  page,
+  request,
+}) => {
+  test.skip(!!process.env.BASE_URL, 'creates accounts, so local only');
+  const email = `temp-${Date.now()}@test.com`;
+  await apiSignIn(request, 'admin@test.com');
+  await request.post('/api/staff', {
+    data: { name: 'Temp Cook', email, password: 'Test@1234', role: 'KITCHEN' },
+  });
+
+  await signIn(page, 'admin@test.com');
+  await page.goto('/staff');
+  await page.getByRole('combobox', { name: `Role for ${email}` }).click();
+  await page.getByRole('option', { name: 'DISPATCH' }).click();
+  await expect(page.getByText('Temp Cook updated')).toBeVisible();
+  await page.getByLabel(`${email} can sign in`).click();
+  await expect(page.getByRole('row', { name: new RegExp(email) })).toContainText('Switched off');
+
+  // Switched off means switched off: they can't sign in any more.
+  const res = await request.post('/api/auth/login', { data: { email, password: 'Test@1234' } });
+  expect(res.status()).toBe(401);
+});
+
+test('admins can neither demote nor switch off themselves', async ({ page, request }) => {
+  await signIn(page, 'admin@test.com');
+  await page.goto('/staff');
+  await expect(page.getByLabel('admin@test.com can sign in')).toBeDisabled();
+
+  await apiSignIn(request, 'admin@test.com');
+  const me = await (await request.get('/api/auth/me')).json();
+  const res = await request.put(`/api/staff/${me.id}`, { data: { role: 'KITCHEN', active: true } });
+  expect(res.status()).toBe(400);
+  expect((await res.json()).message).toMatch(/your own role/);
 });

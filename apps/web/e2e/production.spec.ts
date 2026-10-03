@@ -143,6 +143,8 @@ test.describe('production journey', () => {
     await expect(page.getByText('priced on the Standard tier')).toBeVisible();
     const bowl = page.locator('.mantine-Card-root', { hasText: 'Paneer Tikka Rice Bowl' });
     await expect(bowl).toContainText('₹220.00');
+    // Real dish photos on the menu (Jain Veg Pulao has none, on purpose).
+    await expect(bowl.getByRole('img', { name: 'Paneer Tikka Rice Bowl' })).toBeVisible();
   });
 
   test('an admin places an order in the form, with two combinations', async ({ page }) => {

@@ -3,7 +3,7 @@ import { Interval } from '@nestjs/schedule';
 import bcrypt from 'bcryptjs';
 import { MenuService } from '../menu/menu.service.js';
 import { PrismaService } from '../prisma.service.js';
-import { seedCatalogue, seedMissingCompanies } from './catalogue-seed.js';
+import { addMissingDishImages, seedCatalogue, seedMissingCompanies } from './catalogue-seed.js';
 import { DemoOrders } from './demo-orders.js';
 
 // The live app must always have the reviewers' test accounts and realistic
@@ -52,6 +52,7 @@ export class DemoDataService implements OnApplicationBootstrap {
 
     if (DEMO_MODE) {
       await seedMissingCompanies(this.db, driver.id);
+      await addMissingDishImages(this.db);
       if ((await this.db.invoice.count()) === 0) {
         // A fresh demo: the kitchen cooks every day, so whatever day the
         // review is on, the hospital client still has deliveries.

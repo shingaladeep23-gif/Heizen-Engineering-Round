@@ -16,6 +16,10 @@ export const staffSchema = z.object({
 });
 export type StaffInput = z.infer<typeof staffSchema>;
 
+// Changing an existing account: its role, or switching it off and on.
+export const staffUpdateSchema = z.object({ role: z.enum(ROLES), active: z.boolean() });
+export type StaffUpdate = z.infer<typeof staffUpdateSchema>;
+
 export type Me = { id: number; name: string; email: string; role: Role };
 
 // Shape of every error the API returns, so the UI can show it the same way.

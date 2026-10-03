@@ -288,6 +288,7 @@ I did the [Must] items properly first and went over them again with tests. With 
 - Employees: permission flags, allergies, diet, moving companies, and **CSV import [Should]**: good rows are imported, and every bad row is reported with its line number and reason (wrong domain, already an employee, unknown allergy, a duplicate in the file, and so on), so the file is never rejected as a whole.
 - Orders: drafts, placing, editing and cancelling before the cut-off, admin-only after it, cut-off processing (automatic, idempotent, and manually triggerable), a searchable and filterable paginated list, a detail page with breakdown and timeline, admin delivery overrides, rejection.
 - Kitchen board, dispatch board, driver view, billing with credits, settings, and four dashboards.
+- Staff: admins add accounts with a role, change roles later, and switch accounts off and on. Switching off takes effect immediately. You can't demote or switch off yourself, and the last account that can manage staff can't be removed.
 - Server-side permissions throughout, the live site with the four test accounts, and self-refreshing demo data.
 
 **Skipped:**
@@ -346,7 +347,7 @@ The spec asked for tests on the rules most likely to break. Those are the pure-f
 - kitchen unit states and dispatch step order
 - the CSV parser and import rules (quoted commas, Windows line endings, every kind of bad row)
 
-**Playwright** (**66 tests** in `apps/web/e2e`) drives a real browser against **production builds** of both apps and a real Postgres. It covers:
+**Playwright** (**69 tests** in `apps/web/e2e`) drives a real browser against **production builds** of both apps and a real Postgres. It covers:
 - each role's sign-in and landing page
 - server-side 403s for every role on things they shouldn't touch
 - creating a dish
@@ -396,6 +397,7 @@ Things in the demo data worth looking at:
 - Kaveri Consulting, a vegetarian office with the chicken dishes hidden
 - the secret "Chef's Specials" category
 - Gulab Jamun, which has no station and shows as "Unassigned"
+- dish photos from Wikimedia Commons (openly licensed). Jain Veg Pulao has none on purpose: the only pulao photo has meat in it
 - the deactivated Ragi Brownie
 - Acme's Dussehra holiday
 - an Enterprise-tier price override on the Dal Makhani Thali

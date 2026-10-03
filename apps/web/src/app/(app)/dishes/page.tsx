@@ -1,7 +1,7 @@
 'use client';
 
 import { formatMoney } from '@fernleaf/shared';
-import { Badge, Button, Group, Table, Title } from '@mantine/core';
+import { Badge, Button, Group, Image, Table, Title } from '@mantine/core';
 import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -14,6 +14,7 @@ type DishRow = {
   temperature: 'HOT' | 'COLD';
   costPrice: number;
   active: boolean;
+  imageUrl: string | null;
   station: { name: string } | null;
 };
 
@@ -35,6 +36,7 @@ export default function DishesPage() {
       <Table highlightOnHover>
         <Table.Thead>
           <Table.Tr>
+            <Table.Th w={56} />
             <Table.Th>SKU</Table.Th>
             <Table.Th>Name</Table.Th>
             <Table.Th>Station</Table.Th>
@@ -50,6 +52,11 @@ export default function DishesPage() {
               style={{ cursor: 'pointer', opacity: dish.active ? 1 : 0.5 }}
               onClick={() => router.push(`/dishes/${dish.id}`)}
             >
+              <Table.Td>
+                {dish.imageUrl && (
+                  <Image src={dish.imageUrl} w={40} h={40} radius="sm" alt={dish.name} />
+                )}
+              </Table.Td>
               <Table.Td>{dish.sku}</Table.Td>
               <Table.Td>{dish.name}</Table.Td>
               <Table.Td>{dish.station?.name ?? 'Unassigned'}</Table.Td>

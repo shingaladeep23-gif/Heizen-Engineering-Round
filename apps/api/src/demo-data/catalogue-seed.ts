@@ -252,6 +252,26 @@ const DISHES: Record<string, DishSeed[]> = {
   ],
 };
 
+// Dish photos from Wikimedia Commons (openly licensed). Jain Veg Pulao has none:
+// the only pulao photo has meat in it, which would be wrong for that dish.
+const COMMONS = 'https://thumb.wikimedia.org/wikipedia/commons/thumb/';
+const IMAGES: Record<string, string> = {
+  'FL-BWL-001': `${COMMONS}f/f2/Paneer_tikka.jpg/330px-Paneer_tikka.jpg`,
+  'FL-BWL-002': `${COMMONS}5/53/BuddhaBowlLot.jpg/330px-BuddhaBowlLot.jpg`,
+  'FL-BWL-003': `${COMMONS}3/37/Rajma_Masala_%2832081557778%29.jpg/330px-Rajma_Masala_%2832081557778%29.jpg`,
+  'FL-MNS-001': `${COMMONS}4/49/Vegetarian_Curry.jpeg/330px-Vegetarian_Curry.jpeg`,
+  'FL-MNS-002': `${COMMONS}4/41/Butter_Chicken_%26_Butter_Naan_-_Home_-_Chandigarh_-_India_-_0006.jpg/330px-Butter_Chicken_%26_Butter_Naan_-_Home_-_Chandigarh_-_India_-_0006.jpg`,
+  'FL-BRK-001': `${COMMONS}8/80/Poha.jpg/330px-Poha.jpg`,
+  'FL-BRK-002': `${COMMONS}1/11/Idli_Sambar.JPG/330px-Idli_Sambar.JPG`,
+  'FL-BRK-003': `${COMMONS}d/da/Dorset_Cereals_muesli.jpg/330px-Dorset_Cereals_muesli.jpg`,
+  'FL-SLD-001': `${COMMONS}a/ac/Tabouleh_1.JPG/330px-Tabouleh_1.JPG`,
+  'FL-SLD-002': `${COMMONS}f/fc/Kolkata_Rolls.jpg/330px-Kolkata_Rolls.jpg`,
+  'FL-DST-001': `${COMMONS}c/c1/Gulab-jamun-wallpaper-1.jpg/330px-Gulab-jamun-wallpaper-1.jpg`,
+  'FL-DST-002': `${COMMONS}5/5c/Shrikhand_london_kastoori.jpg/330px-Shrikhand_london_kastoori.jpg`,
+  'FL-DST-003': `${COMMONS}6/68/Chocolatebrownie.JPG/330px-Chocolatebrownie.JPG`,
+  'FL-SPC-001': `${COMMONS}7/7c/Hyderabadi_Chicken_Biryani.jpg/330px-Hyderabadi_Chicken_Biryani.jpg`,
+};
+
 const SECRET_CATEGORIES = ["Chef's Specials"];
 // Startup tier only prices the cheaper dishes, so its menu is visibly smaller.
 const STARTUP_SKUS = [
@@ -449,6 +469,7 @@ export async function seedCatalogue(db: PrismaClient, driverId: number) {
           sku: dish.sku,
           name: dish.name,
           description: dish.description,
+          imageUrl: IMAGES[dish.sku] ?? null,
           temperature: dish.temperature,
           costPrice: dish.cost,
           minOrderQty: dish.minOrderQty ?? null,
@@ -474,6 +495,13 @@ export async function seedCatalogue(db: PrismaClient, driverId: number) {
     }
   }
   await seedMissingCompanies(db, driverId);
+}
+
+/** Gives demo dishes their photo if they don't have one yet (for databases seeded earlier). */
+export async function addMissingDishImages(db: PrismaClient) {
+  for (const [sku, imageUrl] of Object.entries(IMAGES)) {
+    await db.dish.updateMany({ where: { sku, imageUrl: null }, data: { imageUrl } });
+  }
 }
 
 /** Creates any demo company that isn't there yet (matched by name). */
