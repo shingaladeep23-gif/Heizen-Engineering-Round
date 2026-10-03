@@ -6,6 +6,12 @@ import { PrismaService } from '../prisma.service.js';
 export class CompaniesController {
   constructor(private readonly db: PrismaService) {}
 
+  @Get('companies')
+  @Can('orders.view')
+  companies() {
+    return this.db.company.findMany({ orderBy: { name: 'asc' }, select: { id: true, name: true } });
+  }
+
   @Get('employees')
   @Can('companies.view')
   employees() {

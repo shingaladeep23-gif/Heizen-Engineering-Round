@@ -14,6 +14,7 @@ import { api, useMe } from '@/lib/api';
 // The API checks every request on its own.
 const NAV: { href: string; label: string; permission?: Permission }[] = [
   { href: '/dashboard', label: 'Dashboard' },
+  { href: '/orders', label: 'Orders', permission: 'orders.view' },
   { href: '/dishes', label: 'Dishes', permission: 'catalogue.view' },
   { href: '/options', label: 'Options', permission: 'catalogue.view' },
   { href: '/menu', label: 'Menu', permission: 'catalogue.view' },

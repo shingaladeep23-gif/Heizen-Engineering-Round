@@ -12,9 +12,13 @@ export class MenuService {
    * The menu exactly as one employee sees it (spec 4.2 + 4.3): active and not
    * hidden from their company, priced on their company's tier, and without
    * anything that has no price there. Secret categories are left out of the
-   * list unless asked for by id.
+   * list unless asked for by id, or all of them when staff build an order
+   * (they're "reachable", just not listed).
    */
-  async menuFor(employeeId: number, openSecretId?: number): Promise<EmployeeMenu> {
+  async menuFor(
+    employeeId: number,
+    secret: { openId?: number; all?: boolean } = {},
+  ): Promise<EmployeeMenu> {
     const employee = await this.db.employee.findUnique({
       where: { id: employeeId },
       include: {
@@ -76,7 +80,7 @@ export class MenuService {
       dietaryPrefs: employee.dietaryPrefs.map((d) => d.name),
     };
     const listed = categories
-      .filter((category) => !category.secret || category.id === openSecretId)
+      .filter((category) => !category.secret || secret.all || category.id === secret.openId)
       .map((category) => ({
         id: category.id,
         name: category.name,

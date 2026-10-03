@@ -117,11 +117,12 @@ export class MenuController {
   }
 
   @Get('preview')
-  @Can('catalogue.view')
+  @Can('companies.view')
   preview(
     @Query('employeeId', ParseIntPipe) employeeId: number,
     @Query('categoryId', new ParseIntPipe({ optional: true })) categoryId?: number,
+    @Query('allSecret') allSecret?: string,
   ) {
-    return this.menu.menuFor(employeeId, categoryId);
+    return this.menu.menuFor(employeeId, { openId: categoryId, all: allSecret === 'true' });
   }
 }
