@@ -165,7 +165,10 @@ export class OrdersService {
     const now = new Date();
     // Placed after the cut-off (admins only) means it's confirmed straight away.
     const status: OrderStatus = !input.place ? 'DRAFT' : info.cutoffPassed ? 'CONFIRMED' : 'PLACED';
-    const employee = await this.db.employee.findUniqueOrThrow({ where: { id: input.employeeId } });
+    const employee = await this.db.employee.findUniqueOrThrow({
+      where: { id: input.employeeId },
+      include: { company: true },
+    });
     const data = {
       status,
       deliveryDate: new Date(input.deliveryDate),
@@ -174,6 +177,8 @@ export class OrdersService {
       packagingTypeId,
       total: built.total,
       confirmedAt: status === 'CONFIRMED' ? now : null,
+      // Confirmed orders start with the company's default driver (spec 4.8).
+      ...(status === 'CONFIRMED' && { driverId: employee.company.defaultDriverId }),
       lines: {
         create: built.lines.map(({ combos, ...line }) => ({
           ...line,
@@ -335,6 +340,12 @@ export class OrdersService {
         data: { status: 'CONFIRMED', confirmedAt: cutoffAt },
       }),
     ]);
+    // Newly confirmed orders get their company's default driver; dispatch can change it per drop.
+    await this.db.$executeRaw`
+      UPDATE "Order" o SET "driverId" = c."defaultDriverId"
+      FROM "Company" c
+      WHERE o."companyId" = c.id AND o."deliveryDate" = ${deliveryDate}::date
+        AND o.status = 'CONFIRMED' AND o."driverId" IS NULL`;
     if (cancelled.count || confirmed.count) {
       this.log.log(
         `Cut-off ${day}: ${confirmed.count} confirmed, ${cancelled.count} drafts cancelled`,
@@ -485,6 +496,7 @@ export class OrdersService {
       },
       rejectReason: order.rejectReason,
       deliveryNote: order.deliveryNote,
+      deliveryPhoto: order.deliveryPhoto,
       deliveredOnTime: order.deliveredOnTime,
       lines: order.lines.map((line) => ({
         id: line.id,

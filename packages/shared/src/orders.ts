@@ -79,6 +79,7 @@ export type OrderDetail = {
   invoice: { id: number; paidAt: string | null } | null;
   rejectReason: string | null;
   deliveryNote: string | null;
+  deliveryPhoto: string | null;
   deliveredOnTime: boolean | null;
   lines: {
     id: number;

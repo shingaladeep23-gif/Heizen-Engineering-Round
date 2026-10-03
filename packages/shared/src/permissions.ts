@@ -26,7 +26,8 @@ export const PERMISSIONS = [
 export type Permission = (typeof PERMISSIONS)[number];
 
 export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
-  ADMIN: PERMISSIONS,
+  // Admins can do everything except be a driver: deliveries.own means "my own drops".
+  ADMIN: PERMISSIONS.filter((p) => p !== 'deliveries.own'),
   KITCHEN: ['kitchen.view', 'kitchen.work', 'orders.view', 'catalogue.view'],
   DISPATCH: ['dispatch.view', 'dispatch.work', 'orders.view', 'companies.view'],
   DRIVER: ['deliveries.own'],

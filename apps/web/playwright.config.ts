@@ -13,7 +13,10 @@ export default defineConfig({
   testDir: './e2e',
   use: { baseURL: liveUrl ?? 'http://localhost:3000' },
   // Free hosting is slower than localhost, so allow more time there.
-  expect: { timeout: liveUrl ? 15_000 : 5_000 },
+  expect: { timeout: liveUrl ? 15_000 : 10_000 },
+  // Two browsers at a time: enough to be quick, light enough for a laptop
+  // that's also running Postgres, the API and the web server.
+  workers: 2,
   webServer: liveUrl
     ? undefined
     : [

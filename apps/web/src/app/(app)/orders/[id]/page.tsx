@@ -217,6 +217,14 @@ export default function OrderPage() {
               <Field label="Delivered on time">{o.deliveredOnTime ? 'Yes' : 'No, late'}</Field>
             )}
             {o.deliveryNote && <Field label="Driver's note">{o.deliveryNote}</Field>}
+            {o.deliveryPhoto && (
+              // eslint-disable-next-line @next/next/no-img-element -- a data URL, nothing to optimise
+              <img
+                src={o.deliveryPhoto}
+                alt="Proof of delivery"
+                style={{ maxWidth: '100%', borderRadius: 4 }}
+              />
+            )}
           </Stack>
         </Card>
       </SimpleGrid>

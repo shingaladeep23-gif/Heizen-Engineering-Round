@@ -136,10 +136,12 @@ test.describe('menu preview', () => {
     await expect(poha.getByText('Contains Peanuts')).toBeVisible();
   });
 
+  // Uses a dish no other test orders, since test files run in parallel.
   test('hiding a dish on the menu takes it off the preview', async ({ page }) => {
     test.skip(isLive, LOCAL_ONLY);
     // The switch only flips once the server confirms, so click and then wait.
-    const shown = () => page.getByRole('row', { name: /Rajma Chawal Bowl/ }).getByLabel('Shown');
+    const shown = () =>
+      page.getByRole('row', { name: /Overnight Oats with Fruit/ }).getByLabel('Shown');
     await signIn(page, 'admin@test.com');
     await page.goto('/menu');
     await expect(shown()).toBeVisible();
@@ -151,12 +153,12 @@ test.describe('menu preview', () => {
     await shown().click();
     await expect(shown()).not.toBeChecked();
     await preview(page, 'Rohan Desai');
-    await expect(page.getByText('Rajma Chawal Bowl')).toHaveCount(0);
+    await expect(page.getByText('Overnight Oats with Fruit')).toHaveCount(0);
 
     await page.goto('/menu');
     await shown().click();
     await expect(shown()).toBeChecked();
     await preview(page, 'Rohan Desai');
-    await expect(page.getByText('Rajma Chawal Bowl')).toBeVisible();
+    await expect(page.getByText('Overnight Oats with Fruit')).toBeVisible();
   });
 });
