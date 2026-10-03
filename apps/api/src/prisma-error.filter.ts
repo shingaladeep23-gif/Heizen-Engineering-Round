@@ -1,4 +1,4 @@
-import { ArgumentsHost, Catch, ExceptionFilter } from '@nestjs/common';
+import { ArgumentsHost, Catch, ExceptionFilter, Logger } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import type { Response } from 'express';
 
@@ -20,6 +20,8 @@ export class PrismaErrorFilter implements ExceptionFilter {
     } else if (error.code === 'P2025') {
       res.status(404).json({ message: 'Not found' });
     } else {
+      // Anything unexpected is logged with its Prisma code, so a 500 is never a mystery.
+      new Logger('Database').error(`${error.code}: ${error.message}`);
       res.status(500).json({ message: 'Something went wrong, please try again' });
     }
   }
