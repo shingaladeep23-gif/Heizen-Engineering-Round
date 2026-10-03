@@ -54,7 +54,8 @@ export default function DishesPage() {
             >
               <Table.Td>
                 {dish.imageUrl && (
-                  <Image src={dish.imageUrl} w={40} h={40} radius="sm" alt={dish.name} />
+                  // Decorative: the name is right next to it, so screen readers skip it.
+                  <Image src={dish.imageUrl} w={40} h={40} radius="sm" alt="" />
                 )}
               </Table.Td>
               <Table.Td>{dish.sku}</Table.Td>
