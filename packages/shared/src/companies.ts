@@ -28,8 +28,18 @@ const weekdays = z
   .array(z.int().min(1).max(7))
   .min(1, 'Pick at least one day')
   .transform((days) => [...new Set(days)].sort());
-const holidays = z.array(z.object({ date: z.iso.date(), name: z.string().trim().min(1, 'Name it') })).default([]);
+const holidays = z
+  .array(
+    z.object({
+      date: z.iso.date('Pick a date'),
+      name: z.string().trim().min(1, 'Name the holiday'),
+    }),
+  )
+  .default([]);
 
+// A number of minutes, with messages a person can act on.
+const minutes = (max: number) =>
+  z.int('Whole minutes only').min(0, "Can't be negative").max(max, `At most ${max} minutes`);
 const DOMAIN = /^[a-z0-9-]+(\.[a-z0-9-]+)+$/;
 
 // Checked on the whole list, so the error shows on the field itself.
@@ -64,7 +74,7 @@ export const companySchema = z.object({
   workingDays: weekdays,
   holidays,
   deliveryTime: time,
-  dispatchLeadMinutes: z.int().min(0).max(600),
+  dispatchLeadMinutes: minutes(600),
   packagingTypeId: z.int().nullable().default(null),
   driverInstructions: z.string().trim().max(500).default(''),
   defaultDriverId: z.int().nullable().default(null),
@@ -89,10 +99,13 @@ export type EmployeeInput = z.input<typeof employeeSchema>;
 export const settingsSchema = z.object({
   kitchenWorkingDays: weekdays,
   cutoffTime: time,
-  cutoffDays: z.int().min(0).max(14),
-  kitchenBufferMinutes: z.int().min(0).max(600),
-  atRiskMinutes: z.int().min(0).max(600),
-  onTimeGraceMinutes: z.int().min(0).max(240),
+  cutoffDays: z
+    .int('Whole days only')
+    .min(0, "Can't be negative")
+    .max(14, 'At most 14 working days'),
+  kitchenBufferMinutes: minutes(600),
+  atRiskMinutes: minutes(600),
+  onTimeGraceMinutes: minutes(240),
   holidays,
 });
 export type SettingsInput = z.input<typeof settingsSchema>;

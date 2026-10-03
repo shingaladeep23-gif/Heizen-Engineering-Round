@@ -154,10 +154,12 @@ function CompanyForm({
   id,
   initial,
   employees,
+  onSaved,
 }: {
   id: number | null;
   initial: Form;
   employees: Employee[];
+  onSaved?: () => void;
 }) {
   const router = useRouter();
   const canEdit = useCan('companies.manage');
@@ -187,8 +189,8 @@ function CompanyForm({
     {
       form,
       success: 'Company saved',
-      invalidate: ['company', 'companies'],
-      onSuccess: (saved) => !id && router.replace(`/companies/${saved.id}`),
+      invalidate: ['companies'],
+      onSuccess: (saved) => (id ? onSaved?.() : router.replace(`/companies/${saved.id}`)),
     },
   );
   const v = form.values;
@@ -197,188 +199,198 @@ function CompanyForm({
   );
 
   return (
-    <form onSubmit={form.onSubmit((values) => save.mutate(values))}>
-      <fieldset disabled={!canEdit} style={{ border: 0, padding: 0, margin: 0 }}>
-        <Stack>
-          <Group justify="space-between">
-            <Title order={2}>{id ? v.name : 'New company'}</Title>
-            {canEdit && (
-              <Button type="submit" loading={save.isPending}>
-                Save company
+    <>
+      <form onSubmit={form.onSubmit((values) => save.mutate(values))}>
+        <fieldset disabled={!canEdit} style={{ border: 0, padding: 0, margin: 0 }}>
+          <Stack>
+            <Group justify="space-between">
+              <Title order={2}>{id ? v.name : 'New company'}</Title>
+              {canEdit && (
+                <Button type="submit" loading={save.isPending}>
+                  Save company
+                </Button>
+              )}
+            </Group>
+
+            <Card withBorder>
+              <SimpleGrid cols={{ base: 1, sm: 2 }}>
+                <TextInput label="Company name" {...form.getInputProps('name')} />
+                <TagsInput
+                  label="Email domains"
+                  description="Press Enter after each. Public ones like gmail.com aren't allowed."
+                  placeholder="acme.in"
+                  {...form.getInputProps('domains')}
+                />
+                <TextInput label="Billing name" {...form.getInputProps('billingName')} />
+                <TextInput label="Billing email" {...form.getInputProps('billingEmail')} />
+                <TextInput
+                  label="Billing phone"
+                  value={v.billingPhone ?? ''}
+                  onChange={(e) =>
+                    form.setFieldValue('billingPhone', e.currentTarget.value || null)
+                  }
+                />
+                <Select
+                  label="Owner"
+                  description={
+                    id ? 'One of the employees below' : 'Add employees first, then pick the owner'
+                  }
+                  clearable
+                  data={options(employees)}
+                  value={asValue(v.ownerId)}
+                  onChange={(val) => form.setFieldValue('ownerId', asId(val))}
+                  error={form.errors.ownerId}
+                />
+              </SimpleGrid>
+            </Card>
+
+            <Card withBorder>
+              <Title order={4} mb="xs">
+                Delivery addresses
+              </Title>
+              {form.errors.addresses && (
+                <Text c="red" size="sm">
+                  {form.errors.addresses}
+                </Text>
+              )}
+              <Radio.Group
+                value={String(v.defaultAddressIndex)}
+                onChange={(val) => form.setFieldValue('defaultAddressIndex', Number(val))}
+              >
+                <Stack gap="xs">
+                  {v.addresses.map((_, i) => (
+                    <Group key={i} align="flex-end">
+                      <Radio value={String(i)} label="Default" mb={8} />
+                      <TextInput
+                        label="Label"
+                        placeholder="HQ, 4th floor"
+                        w={200}
+                        {...form.getInputProps(`addresses.${i}.label`)}
+                      />
+                      <TextInput
+                        label="Full address"
+                        style={{ flex: 1, minWidth: 220 }}
+                        {...form.getInputProps(`addresses.${i}.text`)}
+                      />
+                      {v.addresses.length > 1 && (
+                        <ActionIcon
+                          variant="subtle"
+                          color="red"
+                          mb={6}
+                          aria-label={`Remove address ${i + 1}`}
+                          onClick={() => {
+                            form.removeListItem('addresses', i);
+                            form.setFieldValue('defaultAddressIndex', 0);
+                          }}
+                        >
+                          ×
+                        </ActionIcon>
+                      )}
+                    </Group>
+                  ))}
+                </Stack>
+              </Radio.Group>
+              <Button
+                variant="light"
+                size="compact-sm"
+                mt="sm"
+                onClick={() => form.insertListItem('addresses', { label: '', text: '' })}
+              >
+                Add address
               </Button>
-            )}
-          </Group>
+            </Card>
 
-          <Card withBorder>
-            <SimpleGrid cols={{ base: 1, sm: 2 }}>
-              <TextInput label="Company name" {...form.getInputProps('name')} />
-              <TagsInput
-                label="Email domains"
-                description="Press Enter after each. Public ones like gmail.com aren't allowed."
-                placeholder="acme.in"
-                {...form.getInputProps('domains')}
-              />
-              <TextInput label="Billing name" {...form.getInputProps('billingName')} />
-              <TextInput label="Billing email" {...form.getInputProps('billingEmail')} />
-              <TextInput
-                label="Billing phone"
-                value={v.billingPhone ?? ''}
-                onChange={(e) => form.setFieldValue('billingPhone', e.currentTarget.value || null)}
-              />
-              <Select
-                label="Owner"
-                description={
-                  id ? 'One of the employees below' : 'Add employees first, then pick the owner'
-                }
-                clearable
-                data={options(employees)}
-                value={asValue(v.ownerId)}
-                onChange={(val) => form.setFieldValue('ownerId', asId(val))}
-                error={form.errors.ownerId}
-              />
-            </SimpleGrid>
-          </Card>
-
-          <Card withBorder>
-            <Title order={4} mb="xs">
-              Delivery addresses
-            </Title>
-            {form.errors.addresses && (
-              <Text c="red" size="sm">
-                {form.errors.addresses}
+            <Card withBorder>
+              <Title order={4} mb="xs">
+                Calendar
+              </Title>
+              <Text size="sm" c="dimmed" mb="sm">
+                No deliveries on days off or holidays. This doesn&apos;t move the order cut-off;
+                only the kitchen calendar does.
               </Text>
-            )}
-            <Radio.Group
-              value={String(v.defaultAddressIndex)}
-              onChange={(val) => form.setFieldValue('defaultAddressIndex', Number(val))}
-            >
-              <Stack gap="xs">
-                {v.addresses.map((_, i) => (
-                  <Group key={i} align="flex-end" wrap="nowrap">
-                    <Radio value={String(i)} label="Default" mb={8} />
-                    <TextInput
-                      label="Label"
-                      placeholder="HQ, 4th floor"
-                      w={200}
-                      {...form.getInputProps(`addresses.${i}.label`)}
-                    />
-                    <TextInput
-                      label="Full address"
-                      style={{ flex: 1 }}
-                      {...form.getInputProps(`addresses.${i}.text`)}
-                    />
-                    {v.addresses.length > 1 && (
-                      <ActionIcon
-                        variant="subtle"
-                        color="red"
-                        mb={6}
-                        aria-label={`Remove address ${i + 1}`}
-                        onClick={() => {
-                          form.removeListItem('addresses', i);
-                          form.setFieldValue('defaultAddressIndex', 0);
-                        }}
-                      >
-                        ×
-                      </ActionIcon>
-                    )}
-                  </Group>
-                ))}
+              <Stack>
+                <WorkingDays
+                  value={v.workingDays}
+                  onChange={(days) => form.setFieldValue('workingDays', days)}
+                  error={form.errors.workingDays as string | undefined}
+                />
+                <Holidays
+                  value={v.holidays}
+                  onChange={(h) => form.setFieldValue('holidays', h)}
+                  errors={form.errors}
+                />
               </Stack>
-            </Radio.Group>
-            <Button
-              variant="light"
-              size="compact-sm"
-              mt="sm"
-              onClick={() => form.insertListItem('addresses', { label: '', text: '' })}
-            >
-              Add address
-            </Button>
-          </Card>
+            </Card>
 
-          <Card withBorder>
-            <Title order={4} mb="xs">
-              Calendar
-            </Title>
-            <Text size="sm" c="dimmed" mb="sm">
-              No deliveries on days off or holidays. This doesn&apos;t move the order cut-off; only
-              the kitchen calendar does.
-            </Text>
-            <Stack>
-              <WorkingDays
-                value={v.workingDays}
-                onChange={(days) => form.setFieldValue('workingDays', days)}
-                error={form.errors.workingDays as string | undefined}
+            <Card withBorder>
+              <Title order={4} mb="xs">
+                Delivery defaults
+              </Title>
+              <SimpleGrid cols={{ base: 1, sm: 2, md: 4 }}>
+                <TimeInput label="Delivery time" {...form.getInputProps('deliveryTime')} />
+                <NumberInput
+                  label="Leaves the kitchen (min before)"
+                  min={0}
+                  allowDecimal={false}
+                  {...form.getInputProps('dispatchLeadMinutes')}
+                />
+                <Select
+                  label="Packaging"
+                  clearable
+                  data={options(lists.data?.['packaging-types'])}
+                  value={asValue(v.packagingTypeId)}
+                  onChange={(val) => form.setFieldValue('packagingTypeId', asId(val))}
+                />
+                <Select
+                  label="Default driver"
+                  clearable
+                  data={options(drivers.data)}
+                  value={asValue(v.defaultDriverId)}
+                  onChange={(val) => form.setFieldValue('defaultDriverId', asId(val))}
+                  error={form.errors.defaultDriverId}
+                />
+              </SimpleGrid>
+              <Textarea
+                mt="sm"
+                label="Standing instructions for the driver"
+                {...form.getInputProps('driverInstructions')}
               />
-              <Holidays value={v.holidays} onChange={(h) => form.setFieldValue('holidays', h)} />
-            </Stack>
-          </Card>
+            </Card>
 
-          <Card withBorder>
-            <Title order={4} mb="xs">
-              Delivery defaults
-            </Title>
-            <SimpleGrid cols={{ base: 1, sm: 2, md: 4 }}>
-              <TimeInput label="Delivery time" {...form.getInputProps('deliveryTime')} />
-              <NumberInput
-                label="Leaves the kitchen (min before)"
-                min={0}
-                allowDecimal={false}
-                {...form.getInputProps('dispatchLeadMinutes')}
-              />
-              <Select
-                label="Packaging"
-                clearable
-                data={options(lists.data?.['packaging-types'])}
-                value={asValue(v.packagingTypeId)}
-                onChange={(val) => form.setFieldValue('packagingTypeId', asId(val))}
-              />
-              <Select
-                label="Default driver"
-                clearable
-                data={options(drivers.data)}
-                value={asValue(v.defaultDriverId)}
-                onChange={(val) => form.setFieldValue('defaultDriverId', asId(val))}
-                error={form.errors.defaultDriverId}
-              />
-            </SimpleGrid>
-            <Textarea
-              mt="sm"
-              label="Standing instructions for the driver"
-              {...form.getInputProps('driverInstructions')}
-            />
-          </Card>
+            <Card withBorder>
+              <Title order={4} mb="xs">
+                Menu and price
+              </Title>
+              <SimpleGrid cols={{ base: 1, sm: 3 }}>
+                <Select
+                  label="Price tier"
+                  placeholder="Default tier"
+                  clearable
+                  data={options(tiers.data)}
+                  value={asValue(v.priceTierId)}
+                  onChange={(val) => form.setFieldValue('priceTierId', asId(val))}
+                />
+                <MultiSelect
+                  label="Hidden categories"
+                  data={options(menu.data)}
+                  value={v.hiddenCategoryIds.map(String)}
+                  onChange={(val) => form.setFieldValue('hiddenCategoryIds', val.map(Number))}
+                />
+                <MultiSelect
+                  label="Hidden dishes"
+                  searchable
+                  data={items}
+                  value={v.hiddenItemIds.map(String)}
+                  onChange={(val) => form.setFieldValue('hiddenItemIds', val.map(Number))}
+                />
+              </SimpleGrid>
+            </Card>
+          </Stack>
+        </fieldset>
+      </form>
 
-          <Card withBorder>
-            <Title order={4} mb="xs">
-              Menu and price
-            </Title>
-            <SimpleGrid cols={{ base: 1, sm: 3 }}>
-              <Select
-                label="Price tier"
-                placeholder="Default tier"
-                clearable
-                data={options(tiers.data)}
-                value={asValue(v.priceTierId)}
-                onChange={(val) => form.setFieldValue('priceTierId', asId(val))}
-              />
-              <MultiSelect
-                label="Hidden categories"
-                data={options(menu.data)}
-                value={v.hiddenCategoryIds.map(String)}
-                onChange={(val) => form.setFieldValue('hiddenCategoryIds', val.map(Number))}
-              />
-              <MultiSelect
-                label="Hidden dishes"
-                searchable
-                data={items}
-                value={v.hiddenItemIds.map(String)}
-                onChange={(val) => form.setFieldValue('hiddenItemIds', val.map(Number))}
-              />
-            </SimpleGrid>
-          </Card>
-        </Stack>
-      </fieldset>
-
+      {/* Outside the company <form>: React passes a submit from the employee
+          dialog up through its portal, which would save the company too. */}
       {id && (
         <Card withBorder mt="md">
           <Group justify="space-between" mb="xs">
@@ -443,7 +455,7 @@ function CompanyForm({
           </Modal>
         </Card>
       )}
-    </form>
+    </>
   );
 }
 
@@ -455,15 +467,23 @@ export default function CompanyPage() {
     queryFn: () => api<CompanyDetail>(`/companies/${id}`),
     enabled: id !== null,
   });
+  // The form starts from the saved company and is only rebuilt after the
+  // company itself is saved (to pick up what the server assigned, like new
+  // address ids). Reloads for other reasons, such as adding an employee,
+  // just refresh the employee list and never throw away unsaved edits.
+  const [version, setVersion] = useState(0);
   if (id === null) return <CompanyForm id={null} initial={EMPTY} employees={[]} />;
   if (!company.data) return <Waiting error={company.error} />;
-  // Remount when the data changes so the form picks up saved values.
   return (
     <CompanyForm
-      key={JSON.stringify(company.data)}
+      key={version}
       id={id}
       initial={company.data}
       employees={company.data.employees}
+      onSaved={async () => {
+        await company.refetch();
+        setVersion((v) => v + 1);
+      }}
     />
   );
 }

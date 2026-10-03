@@ -36,13 +36,18 @@ export function WorkingDays({
 
 type Holiday = { date: string; name: string };
 
+// `errors` is the form's errors object; the API names them holidays.0.date etc.
 export function Holidays({
   value,
   onChange,
+  errors = {},
 }: {
   value: Holiday[];
   onChange: (h: Holiday[]) => void;
+  errors?: Record<string, unknown>;
 }) {
+  const error = (i: number, field: keyof Holiday) =>
+    errors[`holidays.${i}.${field}`] as string | undefined;
   const set = (i: number, change: Partial<Holiday>) =>
     onChange(value.map((h, j) => (j === i ? { ...h, ...change } : h)));
   return (
@@ -51,18 +56,20 @@ export function Holidays({
         Holidays
       </Text>
       {value.map((holiday, i) => (
-        <Group key={i} gap="xs">
+        <Group key={i} gap="xs" align="flex-start">
           <TextInput
             type="date"
             aria-label={`Holiday ${i + 1} date`}
             value={holiday.date}
             onChange={(e) => set(i, { date: e.currentTarget.value })}
+            error={error(i, 'date')}
           />
           <TextInput
             aria-label={`Holiday ${i + 1} name`}
             placeholder="e.g. Diwali"
             value={holiday.name}
             onChange={(e) => set(i, { name: e.currentTarget.value })}
+            error={error(i, 'name')}
           />
           <ActionIcon
             variant="subtle"

@@ -44,6 +44,7 @@ function SettingsForm({ initial }: { initial: Settings }) {
             <Holidays
               value={form.values.holidays}
               onChange={(h) => form.setFieldValue('holidays', h)}
+              errors={form.errors}
             />
           </Stack>
         </Card>
