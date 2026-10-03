@@ -290,3 +290,15 @@ describe('buildLines', () => {
     });
   });
 });
+
+describe('order size', () => {
+  it('refuses an order over ₹10,00,000, before it can overflow anything', () => {
+    const message = errorOf(() =>
+      buildLines(MENU, [
+        { dishId: 1, quantity: 5000, combos: [{ quantity: 5000, optionIds: [10] }] },
+      ]),
+    );
+    // 5000 x (200 + 25) = 11,25,000
+    expect(message).toMatch(/can't be over ₹10,00,000/);
+  });
+});

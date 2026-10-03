@@ -1,4 +1,5 @@
-import { Body, Controller, Get, Param, ParseIntPipe, Post, Put } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Put } from '@nestjs/common';
+import { IdPipe } from '../id.pipe.js';
 import { companySchema, employeeImportSchema, employeeSchema } from '@fernleaf/shared';
 import type { z } from 'zod';
 import { Can } from '../auth/auth.guard.js';
@@ -21,7 +22,7 @@ export class CompaniesController {
 
   @Get('companies/:id')
   @Can('companies.view')
-  detail(@Param('id', ParseIntPipe) id: number) {
+  detail(@Param('id', IdPipe) id: number) {
     return this.companies.detail(id);
   }
 
@@ -34,7 +35,7 @@ export class CompaniesController {
   @Put('companies/:id')
   @Can('companies.manage')
   update(
-    @Param('id', ParseIntPipe) id: number,
+    @Param('id', IdPipe) id: number,
     @Body(new ZodPipe(companySchema)) input: z.output<typeof companySchema>,
   ) {
     return this.companies.save(id, input);
@@ -43,7 +44,7 @@ export class CompaniesController {
   @Post('companies/:id/employees/import')
   @Can('companies.manage')
   importEmployees(
-    @Param('id', ParseIntPipe) id: number,
+    @Param('id', IdPipe) id: number,
     @Body(new ZodPipe(employeeImportSchema)) { csv }: { csv: string },
   ) {
     return this.companies.importEmployees(id, csv);
@@ -67,7 +68,7 @@ export class CompaniesController {
   @Put('employees/:id')
   @Can('companies.manage')
   updateEmployee(
-    @Param('id', ParseIntPipe) id: number,
+    @Param('id', IdPipe) id: number,
     @Body(new ZodPipe(employeeSchema)) input: z.output<typeof employeeSchema>,
   ) {
     return this.companies.saveEmployee(id, input);

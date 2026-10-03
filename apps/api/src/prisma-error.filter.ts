@@ -4,10 +4,24 @@ import type { Response } from 'express';
 
 // Database errors become the same { message, fieldErrors } shape as every
 // other error, instead of a bare 500.
-@Catch(Prisma.PrismaClientKnownRequestError)
+@Catch(Prisma.PrismaClientKnownRequestError, Prisma.PrismaClientUnknownRequestError)
 export class PrismaErrorFilter implements ExceptionFilter {
-  catch(error: Prisma.PrismaClientKnownRequestError, host: ArgumentsHost) {
+  catch(
+    error: Prisma.PrismaClientKnownRequestError | Prisma.PrismaClientUnknownRequestError,
+    host: ArgumentsHost,
+  ) {
     const res = host.switchToHttp().getResponse<Response>();
+    // A number bigger than the database's whole-number columns hold. Forms
+    // have their own, friendlier limits; this is the safety net for the rest.
+    if (error.message.includes('Unable to fit integer value')) {
+      res.status(400).json({ message: 'A number in that request is too large' });
+      return;
+    }
+    if (error instanceof Prisma.PrismaClientUnknownRequestError) {
+      new Logger('Database').error(error.message);
+      res.status(500).json({ message: 'Something went wrong, please try again' });
+      return;
+    }
     const fields = (error.meta?.target as string[] | undefined) ?? [];
 
     if (error.code === 'P2002') {

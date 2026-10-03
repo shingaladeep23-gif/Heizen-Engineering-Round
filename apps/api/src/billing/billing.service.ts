@@ -149,9 +149,14 @@ export class BillingService {
             'Some of those were already invoiced or are no longer billable. Refresh and try again.',
         });
       }
-      const invoice = await tx.invoice.create({
-        data: { companyId, total: invoiceTotal(orders, credits) },
-      });
+      const total = invoiceTotal(orders, credits);
+      // Totals are whole paise in a 32-bit column (up to about ₹2.1 crore).
+      if (Math.abs(total) > 2_000_000_000) {
+        throw new BadRequestException({
+          message: 'That is too much for one invoice. Split it into two or more.',
+        });
+      }
+      const invoice = await tx.invoice.create({ data: { companyId, total } });
       // Re-checked here, not just above: an order cancelled while we were
       // reading must not end up on the invoice.
       const claimed = await tx.order.updateMany({

@@ -1,14 +1,5 @@
-import {
-  Body,
-  Controller,
-  Delete,
-  Get,
-  Param,
-  ParseIntPipe,
-  Post,
-  Put,
-  Query,
-} from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post, Put, Query } from '@nestjs/common';
+import { IdPipe } from '../id.pipe.js';
 import {
   categorySchema,
   menuItemSchema,
@@ -63,7 +54,7 @@ export class MenuController {
   @Put('categories/:id')
   @Can('catalogue.manage')
   updateCategory(
-    @Param('id', ParseIntPipe) id: number,
+    @Param('id', IdPipe) id: number,
     @Body(new ZodPipe(categorySchema)) input: Required<CategoryInput>,
   ) {
     return this.db.menuCategory.update({ where: { id }, data: input });
@@ -72,7 +63,7 @@ export class MenuController {
   @Post('categories/:id/items')
   @Can('catalogue.manage')
   async addItem(
-    @Param('id', ParseIntPipe) categoryId: number,
+    @Param('id', IdPipe) categoryId: number,
     @Body(new ZodPipe(menuItemSchema)) { dishId }: { dishId: number },
   ) {
     const last = await this.db.menuItem.aggregate({
@@ -87,7 +78,7 @@ export class MenuController {
   @Put('categories/:id/items/order')
   @Can('catalogue.manage')
   async orderItems(
-    @Param('id', ParseIntPipe) categoryId: number,
+    @Param('id', IdPipe) categoryId: number,
     @Body(new ZodPipe(reorderSchema)) { ids }: { ids: number[] },
   ) {
     await this.db.$transaction(
@@ -101,7 +92,7 @@ export class MenuController {
   @Put('items/:id')
   @Can('catalogue.manage')
   toggleItem(
-    @Param('id', ParseIntPipe) id: number,
+    @Param('id', IdPipe) id: number,
     @Body(new ZodPipe(toggleSchema)) { active }: { active: boolean },
   ) {
     return this.db.menuItem.update({ where: { id }, data: { active } });
@@ -111,7 +102,7 @@ export class MenuController {
   // its history are untouched.
   @Delete('items/:id')
   @Can('catalogue.manage')
-  async removeItem(@Param('id', ParseIntPipe) id: number) {
+  async removeItem(@Param('id', IdPipe) id: number) {
     await this.db.menuItem.delete({ where: { id } });
     return { ok: true };
   }
@@ -119,8 +110,8 @@ export class MenuController {
   @Get('preview')
   @Can('companies.view')
   preview(
-    @Query('employeeId', ParseIntPipe) employeeId: number,
-    @Query('categoryId', new ParseIntPipe({ optional: true })) categoryId?: number,
+    @Query('employeeId', IdPipe) employeeId: number,
+    @Query('categoryId', IdPipe) categoryId?: number,
     @Query('allSecret') allSecret?: string,
   ) {
     return this.menu.menuFor(employeeId, { openId: categoryId, all: allSecret === 'true' });

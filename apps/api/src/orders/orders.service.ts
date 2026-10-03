@@ -326,8 +326,18 @@ export class OrdersService {
       throw bad('addressId', "That address doesn't belong to this order's company");
     }
     // The planned kitchen and dispatch times follow automatically: they're
-    // worked out from the delivery time whenever they're shown.
-    return this.db.order.update({ where: { id }, data: input });
+    // worked out from the delivery time whenever they're shown. Only if it
+    // still hasn't left: dispatch may have sent it out while we were checking.
+    const { count } = await this.db.order.updateMany({
+      where: { id, status: 'CONFIRMED', outForDeliveryAt: null },
+      data: input,
+    });
+    if (count === 0) {
+      throw new ConflictException({
+        message: 'This order has just left the kitchen, so its delivery details can’t change now',
+      });
+    }
+    return this.find(id);
   }
 
   private async find(id: number) {

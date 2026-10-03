@@ -180,6 +180,13 @@ export class DispatchService {
     if (ids.length === 0)
       throw new NotFoundException({ message: 'No confirmed orders in that drop' });
     await tx.$queryRaw`SELECT id FROM "Order" WHERE id = ANY(${ids}) FOR UPDATE`;
-    return tx.order.findMany({ where: { id: { in: ids } } });
+    // Read them again with the drop's own conditions, now that they're locked:
+    // an order cancelled or moved to another time while we waited is no longer
+    // part of this drop, and must not be stepped (or a cancelled order would
+    // come back as delivered).
+    const orders = await tx.order.findMany({ where: { ...dropWhere(ref), id: { in: ids } } });
+    if (orders.length === 0)
+      throw new NotFoundException({ message: 'No confirmed orders in that drop' });
+    return orders;
   }
 }

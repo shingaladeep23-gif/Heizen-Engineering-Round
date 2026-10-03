@@ -115,3 +115,26 @@ export async function markDelivered(orderId: number) {
     },
   });
 }
+
+/**
+ * A placed order on a date whose cut-off has already passed. The API (rightly)
+ * won't create one, but it's what cut-off processing finds waiting for it.
+ */
+export async function placedPastCutoff(employeeId: number, day: string) {
+  const employee = await db.employee.findUniqueOrThrow({
+    where: { id: employeeId },
+    include: { company: true },
+  });
+  const order = await db.order.create({
+    data: {
+      employeeId,
+      companyId: employee.companyId,
+      addressId: employee.company.defaultAddressId!,
+      status: 'PLACED',
+      deliveryDate: new Date(day),
+      deliveryTime: await freeTime(employee.companyId, day),
+      placedAt: new Date(),
+    },
+  });
+  return order.id;
+}

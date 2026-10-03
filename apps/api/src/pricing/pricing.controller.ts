@@ -5,10 +5,10 @@ import {
   Get,
   NotFoundException,
   Param,
-  ParseIntPipe,
   Post,
   Put,
 } from '@nestjs/common';
+import { IdPipe } from '../id.pipe.js';
 import {
   priceSchema,
   tierSchema,
@@ -74,7 +74,7 @@ export class PricingController {
   // and the price employees actually pay. A null price is a gap on this tier.
   @Get(':id/grid')
   @Can('catalogue.view')
-  async grid(@Param('id', ParseIntPipe) id: number): Promise<TierGrid> {
+  async grid(@Param('id', IdPipe) id: number): Promise<TierGrid> {
     const tier = (await this.tiers()).find((t) => t.id === id);
     if (!tier) throw new NotFoundException({ message: 'Tier not found' });
     const rule: TierRule = { ...tier, factor: tier.factor?.toString() ?? null };
@@ -104,17 +104,14 @@ export class PricingController {
 
   @Put(':id')
   @Can('catalogue.manage')
-  async update(
-    @Param('id', ParseIntPipe) id: number,
-    @Body(new ZodPipe(tierSchema)) input: TierBody,
-  ) {
+  async update(@Param('id', IdPipe) id: number, @Body(new ZodPipe(tierSchema)) input: TierBody) {
     await this.checkBase(id, input);
     return this.db.priceTier.update({ where: { id }, data: this.tierData(input) });
   }
 
   @Put(':id/default')
   @Can('catalogue.manage')
-  async makeDefault(@Param('id', ParseIntPipe) id: number) {
+  async makeDefault(@Param('id', IdPipe) id: number) {
     await this.db.priceTier.findUniqueOrThrow({ where: { id } });
     await this.db.settings.update({ where: { id: 1 }, data: { defaultTierId: id } });
     return { ok: true };
@@ -125,7 +122,7 @@ export class PricingController {
   @Put(':id/prices')
   @Can('catalogue.manage')
   async setPrice(
-    @Param('id', ParseIntPipe) tierId: number,
+    @Param('id', IdPipe) tierId: number,
     @Body(new ZodPipe(priceSchema)) input: PriceInput,
   ) {
     const key = input.kind === 'dish' ? { dishId: input.id } : { optionId: input.id };

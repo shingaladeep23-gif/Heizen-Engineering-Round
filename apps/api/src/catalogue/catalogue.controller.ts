@@ -8,10 +8,10 @@ import {
   NotFoundException,
   Param,
   ParseEnumPipe,
-  ParseIntPipe,
   Post,
   Put,
 } from '@nestjs/common';
+import { IdPipe } from '../id.pipe.js';
 import {
   dishSchema,
   LIST_KINDS,
@@ -79,7 +79,7 @@ export class CatalogueController {
   @Can('catalogue.manage')
   async removeListItem(
     @Param('kind', new ParseEnumPipe(LIST_KINDS)) kind: ListKind,
-    @Param('id', ParseIntPipe) id: number,
+    @Param('id', IdPipe) id: number,
   ) {
     const item = await this.list(kind).findUnique({ where: { id }, include: { _count: true } });
     if (!item) throw new NotFoundException({ message: 'Not found' });
@@ -116,7 +116,7 @@ export class CatalogueController {
   @Put('options/:id')
   @Can('catalogue.manage')
   updateOption(
-    @Param('id', ParseIntPipe) id: number,
+    @Param('id', IdPipe) id: number,
     @Body(new ZodPipe(optionSchema)) input: OptionBody,
   ) {
     const { sizes, ...data } = this.optionData(input);
@@ -170,7 +170,7 @@ export class CatalogueController {
   // Shaped like the form, so the edit screen can load it straight in.
   @Get('dishes/:id')
   @Can('catalogue.view')
-  async dish(@Param('id', ParseIntPipe) id: number) {
+  async dish(@Param('id', IdPipe) id: number) {
     const dish = await this.db.dish.findUnique({
       where: { id },
       include: {
@@ -209,10 +209,7 @@ export class CatalogueController {
 
   @Put('dishes/:id')
   @Can('catalogue.manage')
-  updateDish(
-    @Param('id', ParseIntPipe) id: number,
-    @Body(new ZodPipe(dishSchema)) input: DishBody,
-  ) {
+  updateDish(@Param('id', IdPipe) id: number, @Body(new ZodPipe(dishSchema)) input: DishBody) {
     return this.saveDish(id, input);
   }
 

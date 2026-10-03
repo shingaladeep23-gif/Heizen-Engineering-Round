@@ -2,7 +2,11 @@
 import { z } from 'zod';
 
 const name = z.string().trim().min(1, 'Required').max(120);
-const money = z.int('Must be a whole number of paise').min(0, "Can't be negative");
+// Prices and costs per item, up to ₹1,00,000 (plenty for a meal; keeps totals safe).
+const money = z
+  .int('Must be a whole number of paise')
+  .min(0, "Can't be negative")
+  .max(10_000_000, 'At most ₹1,00,000');
 const ids = z.array(z.int()).default([]);
 
 // Admin-managed reference lists (spec 4.1). Packaging is here too, same pattern.
@@ -93,7 +97,7 @@ export type TierInput = z.input<typeof tierSchema>;
 export const priceSchema = z.object({
   kind: z.enum(['dish', 'option']),
   id: z.int(),
-  price: z.int().min(1, 'Must be above zero').nullable(),
+  price: z.int().min(1, 'Must be above zero').max(10_000_000, 'At most ₹1,00,000').nullable(),
 });
 export type PriceInput = z.infer<typeof priceSchema>;
 

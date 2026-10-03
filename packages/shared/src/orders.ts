@@ -25,11 +25,11 @@ export const orderSchema = z.object({
     .array(
       z.object({
         dishId: z.int(),
-        quantity: z.int().min(1, 'At least 1'),
+        quantity: z.int().min(1, 'At least 1').max(10_000, 'At most 10,000'),
         combos: z
           .array(
             z.object({
-              quantity: z.int().min(1, 'At least 1'),
+              quantity: z.int().min(1, 'At least 1').max(10_000, 'At most 10,000'),
               optionIds: z.array(z.int()).default([]),
               // A size for each option in a group with portions. Left out,
               // the group's first size is used.

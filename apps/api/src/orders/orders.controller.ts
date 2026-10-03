@@ -1,14 +1,5 @@
-import {
-  Body,
-  Controller,
-  Get,
-  HttpCode,
-  Param,
-  ParseIntPipe,
-  Post,
-  Put,
-  Query,
-} from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Param, Post, Put, Query } from '@nestjs/common';
+import { IdPipe, MAX_ID } from '../id.pipe.js';
 import {
   cutoffRunSchema,
   deliveryOverrideSchema,
@@ -29,7 +20,7 @@ const listQuery = z.object({
   from: z.iso.date().optional(),
   to: z.iso.date().optional(),
   status: z.enum(ORDER_STATUSES).optional(),
-  companyId: z.coerce.number().int().optional(),
+  companyId: z.coerce.number().int().min(1).max(MAX_ID).optional(),
   invoiced: z.enum(['yes', 'no']).optional(),
   page: z.coerce.number().int().min(1).default(1),
 });
@@ -51,7 +42,7 @@ export class OrdersController {
   @Get('delivery-info')
   @Can('orders.manage')
   deliveryInfo(
-    @Query('employeeId', ParseIntPipe) employeeId: number,
+    @Query('employeeId', IdPipe) employeeId: number,
     @Query(new ZodPipe(z.object({ date: z.iso.date() }).passthrough())) { date }: { date: string },
   ) {
     return this.orders.deliveryInfo(employeeId, date);
@@ -66,7 +57,7 @@ export class OrdersController {
 
   @Get(':id')
   @Can('orders.view')
-  detail(@CurrentUser() user: User, @Param('id', ParseIntPipe) id: number) {
+  detail(@CurrentUser() user: User, @Param('id', IdPipe) id: number) {
     return this.orders.detail(user, id);
   }
 
@@ -83,7 +74,7 @@ export class OrdersController {
   @Can('orders.manage')
   update(
     @CurrentUser() user: User,
-    @Param('id', ParseIntPipe) id: number,
+    @Param('id', IdPipe) id: number,
     @Body(new ZodPipe(orderSchema)) input: z.output<typeof orderSchema>,
   ) {
     return this.orders.save(user, id, input);
@@ -92,7 +83,7 @@ export class OrdersController {
   @Post(':id/cancel')
   @HttpCode(200)
   @Can('orders.manage')
-  async cancel(@CurrentUser() user: User, @Param('id', ParseIntPipe) id: number) {
+  async cancel(@CurrentUser() user: User, @Param('id', IdPipe) id: number) {
     await this.orders.cancel(user, id);
     return { ok: true };
   }
@@ -101,7 +92,7 @@ export class OrdersController {
   @HttpCode(200)
   @Can('orders.override')
   async reject(
-    @Param('id', ParseIntPipe) id: number,
+    @Param('id', IdPipe) id: number,
     @Body(new ZodPipe(rejectSchema)) { reason }: { reason: string },
   ) {
     await this.orders.reject(id, reason);
@@ -111,7 +102,7 @@ export class OrdersController {
   @Put(':id/delivery')
   @Can('orders.override')
   overrideDelivery(
-    @Param('id', ParseIntPipe) id: number,
+    @Param('id', IdPipe) id: number,
     @Body(new ZodPipe(deliveryOverrideSchema)) input: DeliveryOverride,
   ) {
     return this.orders.overrideDelivery(id, input);

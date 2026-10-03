@@ -21,6 +21,10 @@ export type BuiltLine = {
   combos: { quantity: number; unitPrice: number; total: number; choices: Choice[] }[];
 };
 
+// One employee's order, in paise. Far above any real lunch order, and keeps
+// every total well inside what the database can store.
+export const MAX_ORDER_TOTAL = 100_000_000;
+
 // A broken rule, with the form field it belongs to.
 export class RuleError extends Error {
   constructor(
@@ -151,5 +155,12 @@ export function buildLines(menu: Map<number, PricedDish>, lines: LineInput[]) {
     });
   });
 
-  return { lines: built, total: built.reduce((sum, line) => sum + line.total, 0) };
+  const total = built.reduce((sum, line) => sum + line.total, 0);
+  if (total > MAX_ORDER_TOTAL) {
+    throw new RuleError(
+      'lines',
+      "An order can't be over ₹10,00,000. Split it into smaller orders.",
+    );
+  }
+  return { lines: built, total };
 }

@@ -1,4 +1,5 @@
-import { Body, Controller, Get, HttpCode, Param, ParseIntPipe, Post } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Param, Post } from '@nestjs/common';
+import { IdPipe } from '../id.pipe.js';
 import { createInvoiceSchema, creditSchema, type CreditInput } from '@fernleaf/shared';
 import type { z } from 'zod';
 import { Can } from '../auth/auth.guard.js';
@@ -17,7 +18,7 @@ export class BillingController {
 
   @Get('companies/:id')
   @Can('billing.view')
-  company(@Param('id', ParseIntPipe) id: number) {
+  company(@Param('id', IdPipe) id: number) {
     return this.billing.company(id);
   }
 
@@ -29,24 +30,21 @@ export class BillingController {
 
   @Get('invoices/:id')
   @Can('billing.view')
-  invoice(@Param('id', ParseIntPipe) id: number) {
+  invoice(@Param('id', IdPipe) id: number) {
     return this.billing.invoice(id);
   }
 
   @Post('invoices/:id/paid')
   @HttpCode(200)
   @Can('billing.manage')
-  async paid(@Param('id', ParseIntPipe) id: number) {
+  async paid(@Param('id', IdPipe) id: number) {
     await this.billing.markPaid(id);
     return { ok: true };
   }
 
   @Post('orders/:id/credit')
   @Can('billing.manage')
-  credit(
-    @Param('id', ParseIntPipe) id: number,
-    @Body(new ZodPipe(creditSchema)) input: CreditInput,
-  ) {
+  credit(@Param('id', IdPipe) id: number, @Body(new ZodPipe(creditSchema)) input: CreditInput) {
     return this.billing.credit(id, input);
   }
 }
