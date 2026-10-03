@@ -278,6 +278,7 @@ type CompanySeed = {
   instructions: string;
   hiddenCategories?: string[];
   hiddenDishes?: string[];
+  holidays?: [date: string, name: string][];
   employees: EmployeeSeed[];
 };
 
@@ -296,6 +297,7 @@ const COMPANIES: CompanySeed[] = [
     deliveryTime: '12:30',
     packaging: 'Standard box',
     instructions: 'Hand over at reception, ask for the pantry team.',
+    holidays: [['2026-10-20', 'Dussehra']],
     employees: [
       ['Priya Raman', [], ['Vegetarian'], 'all'],
       ['Arjun Mehta', ['Peanuts'], [], 'address'],
@@ -359,6 +361,29 @@ const COMPANIES: CompanySeed[] = [
       ['Isha Kapoor', [], ['Vegan']],
       ['Tanvi Malhotra', ['Gluten'], []],
       ['Aman Gupta', [], []],
+    ],
+  },
+  {
+    // A hospital: open every day, so there are deliveries whatever day it is.
+    name: 'Orbit Health',
+    domains: ['orbithealth.in'],
+    tier: 'Enterprise',
+    addresses: [
+      ['Main hospital, staff canteen', 'Bannerghatta Main Rd, Bengaluru 560076'],
+      ['Outpatient block', 'Arekere Gate, Bannerghatta Rd, Bengaluru 560076'],
+    ],
+    deliveryTime: '13:30',
+    dispatchLeadMinutes: 45,
+    workingDays: [1, 2, 3, 4, 5, 6, 7],
+    packaging: 'Individually labelled',
+    instructions: 'Deliver to the staff canteen, not the main reception.',
+    employees: [
+      ['Dr Kavya Rao', [], ['Vegetarian'], 'all'],
+      ['Dr Imran Khan', [], ['High protein'], 'address'],
+      ['Sister Mary Thomas', ['Nuts'], []],
+      ['Arvind Iyengar', [], ['Jain']],
+      ['Deepa Nambiar', [], ['Vegan']],
+      ['Suresh Babu', [], []],
     ],
   },
 ];
@@ -448,10 +473,26 @@ export async function seedCatalogue(db: PrismaClient, driverId: number) {
       await db.menuItem.create({ data: { categoryId: category.id, dishId: created.id, position } });
     }
   }
+  await seedMissingCompanies(db, driverId);
+}
+
+/** Creates any demo company that isn't there yet (matched by name). */
+export async function seedMissingCompanies(db: PrismaClient, driverId: number) {
+  const existing = new Set(
+    (await db.company.findMany({ select: { name: true } })).map((c) => c.name),
+  );
+  const missing = COMPANIES.filter((c) => !existing.has(c.name));
+  if (missing.length === 0) return;
+
+  const allergens = byName(await db.allergen.findMany());
+  const tags = byName(await db.dietaryTag.findMany());
+  const packaging = byName(await db.packagingType.findMany());
+  const tierIds = byName(await db.priceTier.findMany());
   const categories = byName(await db.menuCategory.findMany());
   const menuItems = await db.menuItem.findMany({ include: { dish: true } });
 
-  for (const [index, company] of COMPANIES.entries()) {
+  for (const company of missing) {
+    const index = COMPANIES.indexOf(company);
     const created = await db.company.create({
       data: {
         name: company.name,
@@ -467,6 +508,9 @@ export async function seedCatalogue(db: PrismaClient, driverId: number) {
         priceTierId: company.tier ? tierIds.get(company.tier) : null,
         domains: { create: company.domains.map((domain) => ({ domain })) },
         addresses: { create: company.addresses.map(([label, text]) => ({ label, text })) },
+        holidays: {
+          create: (company.holidays ?? []).map(([date, name]) => ({ date: new Date(date), name })),
+        },
         hiddenCategories: { connect: idsOf(categories, company.hiddenCategories ?? []) },
         hiddenItems: {
           connect: menuItems
@@ -484,7 +528,11 @@ export async function seedCatalogue(db: PrismaClient, driverId: number) {
         data: {
           companyId: created.id,
           name,
-          email: `${name.toLowerCase().replace(' ', '.')}@${domain}`,
+          // "Dr Kavya Rao" -> kavya.rao@...
+          email: `${name
+            .replace(/^(Dr|Sister) /, '')
+            .toLowerCase()
+            .replace(' ', '.')}@${domain}`,
           canChooseAddress: flags !== undefined,
           canChangeTime: flags === 'all',
           canChangePackaging: flags === 'all',
