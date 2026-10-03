@@ -118,7 +118,7 @@ test.describe('production journey', () => {
     await signIn(page, 'admin@test.com');
     await page.goto('/dishes');
     await expect(page.getByRole('cell', { name: 'Paneer Tikka Rice Bowl' })).toBeVisible();
-    await expect(page.getByText('Deactivated')).toBeVisible(); // the retired Ragi Brownie
+    await expect(page.getByText('Deactivated', { exact: true })).toBeVisible(); // the retired Ragi Brownie
     await page.getByRole('cell', { name: 'Paneer Tikka Rice Bowl' }).click();
     await expect(page.getByLabel('Group name').first()).toHaveValue('Choose your rice');
     await page.goto('/options');

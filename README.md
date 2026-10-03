@@ -196,7 +196,7 @@ The server re-prices everything itself; the form's totals are only a preview.
 
 **Billing (4.9).** See [the decision on invoiced orders](#key-decisions-and-trade-offs).
 
-**Concurrency (section 7).** Cancelling and rejecting lock the order row and check it's still in the status the person saw, so if two people cancel the same order, one wins and the other gets "someone else just changed this order". The credit for an invoiced order is raised in the same transaction, from the locked row, so a cancel that lands just as someone invoices the order can't lose its credit. Kitchen actions lock the order row first, so two cooks can't both finish the same unit, and the last two units of an order can't both miss "kitchen ready". Dispatch steps lock every order in the drop. Invoicing claims orders with `WHERE invoiceId IS NULL AND status is still billable`, so two people invoicing the same order can't both succeed, and an order cancelled mid-invoice can't slip onto it. Each of these is tested with simultaneous requests.
+**Concurrency (section 7).** Cancelling and rejecting lock the order row and check it's still in the status the person saw, so if two people cancel the same order, one wins and the other gets "someone else just changed this order". The credit for an invoiced order is raised in the same transaction, from the locked row, so a cancel that lands just as someone invoices the order can't lose its credit. Kitchen actions lock the order row first, so two cooks can't both finish the same unit, and the last two units of an order can't both miss "kitchen ready". Dispatch steps lock every order in the drop. Invoicing claims orders with `WHERE invoiceId IS NULL AND status is still billable`, so two people invoicing the same order can't both succeed, and an order cancelled mid-invoice can't slip onto it. A driver marking a drop delivered re-reads the drop after locking it, so an order cancelled a moment earlier stays cancelled. A delivery change only applies while the order is still in the kitchen. Staff changes take a lock of their own, so two admins switching each other off at once can't leave nobody who can manage staff. Each of these is tested with simultaneous requests.
 
 ---
 
@@ -350,7 +350,7 @@ I did the [Must] items properly first and went over them again with tests. With 
 
 ## Tests
 
-The spec asked for tests on the rules most likely to break. Those are the pure-function unit tests (Vitest, **59 tests** in `apps/api/src/**/*.spec.ts`):
+The spec asked for tests on the rules most likely to break. Those are the pure-function unit tests (Vitest, **60 tests** in `apps/api/src/**/*.spec.ts`):
 - **cut-off calculation:** the spec's own Wednesday → Monday 16:00 example, weekends, kitchen holidays, same-day cut-off, and "today in IST" while UTC is still on yesterday
 - **pricing resolution:** typed, derived from cost and from a tier, overrides, missing base, zero cost, rounding with 1.15 (which floats can't hold exactly)
 - **combination counting:** the spec's 6 + 4 = 10 example, quantities that don't add up, a skipped required group, too many choices, unknown options, duplicate combinations, minimum quantity
@@ -359,7 +359,7 @@ The spec asked for tests on the rules most likely to break. Those are the pure-f
 - the CSV parser and import rules (quoted commas, Windows line endings, every kind of bad row)
 - portions: the default size, the extra charge in the price, another size as another combination, sizes a group doesn't sell, and scaling the extra charge on each kind of tier
 
-**Playwright** (**97 tests** in `apps/web/e2e`) drives a real browser against **production builds** of both apps and a real Postgres. It covers:
+**Playwright** (**124 tests** in `apps/web/e2e`, plus the live-only files below) drives a real browser against **production builds** of both apps and a real Postgres. It covers:
 - each role's sign-in and landing page
 - server-side 403s for every role on things they shouldn't touch
 - creating a dish
@@ -389,6 +389,17 @@ Writing it found six problems, all fixed:
 - toasts covered the buttons you'd press next
 - wide tables pushed phone screens sideways
 
+**People acting at once, and odd input** (`e2e/concurrency.spec.ts`, 27 tests) sets up the moments a busy kitchen actually has, with real simultaneous requests, locally and on the live site:
+- the same account on two devices, and signing out on one; two admins switching each other off; an account switched off while it's signed in elsewhere; a forged session cookie
+- two admins editing the same order, an edit against a cancel, the cut-off run twice at once
+- two cooks on the last two units of an order, or on the same unit; a cook against a force-complete or a cancel
+- two dispatchers picking drivers for the same drop, sending out against reassigning, the same step clicked twice, an admin changing a delivery as it leaves
+- two drivers, one driver on two phones, a driver delivering as an admin cancels
+- overlapping invoices, paid twice, credits at once, the same domain or staff email added twice, a company saved from two tabs
+- ids that don't exist or don't fit, numbers too big for the database, and HTML typed into names
+
+It found four real problems, all fixed: a cancelled order could come back as delivered if the driver tapped at the same moment; two admins could switch each other off and leave nobody to manage staff; a delivery change could land on an order already out; and huge ids or amounts gave a 500 instead of a clear message.
+
 **A production journey** (`e2e/production.spec.ts`, **19 tests**) runs only against the live site and walks the whole business in order:
 - the catalogue screens and the menu preview
 - placing an order through the form with two combinations
@@ -414,7 +425,7 @@ Running it found two real problems that local tests couldn't: transactions timin
 
 **The live checks clean up after themselves.** Everything they create is marked as test data ("Fernleaf QA ..." companies on `fernleaf-qa.in`, and "QA" catalogue items, tiers and staff). Before and after each live run, `e2e/qa-cleanup.ts` deletes exactly those rows in one transaction, so reviewers only ever see the demo data. That needs the database URL (`QA_DATABASE_URL`), and a live run refuses to start without it. It's a test harness talking to the database, not a feature of the app: the app itself never hard-deletes orders or dishes.
 
-A local **pre-commit hook** runs lint, type-check, unit tests and Playwright, and blocks the commit if anything fails. Every commit after the first few setup commits went through it. The same Playwright suite runs against the live site with `BASE_URL=...`; local tests that would change demo data skip themselves there, and the two live-only files and `screens.spec.ts` run instead.
+A local **pre-commit hook** runs lint, type-check, unit tests and Playwright, and blocks the commit if anything fails. Every commit after the first few setup commits went through it. The same Playwright suite runs against the live site with `BASE_URL=...`; local tests that would change demo data skip themselves there, and the two live-only files, `screens.spec.ts` and `concurrency.spec.ts` run instead.
 
 ---
 
