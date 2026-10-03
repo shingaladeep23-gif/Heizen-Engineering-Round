@@ -79,8 +79,11 @@ export class DemoDataService implements OnApplicationBootstrap {
     try {
       const completed = await this.orders.completePastDays();
       const created = await this.orders.topUp();
-      if (completed || created) {
-        this.log.log(`Demo refresh: ${created} new orders, ${completed} past orders wrapped up`);
+      const staged = await this.orders.stageTodayOnce();
+      if (completed || created || staged) {
+        this.log.log(
+          `Demo refresh: ${created} new orders, ${completed} past orders wrapped up, ${staged} of today's staged`,
+        );
       }
     } catch (error) {
       this.log.error(`Demo refresh failed: ${String(error)}`);

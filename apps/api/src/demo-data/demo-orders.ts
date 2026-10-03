@@ -416,6 +416,35 @@ export class DemoOrders {
    * the team had worked through them, so the history stays realistic for the
    * whole review period. Only orders still CONFIRMED on a past date move.
    */
+  /**
+   * Today's orders were made days ago as future orders, so nothing has
+   * happened to them yet. From 10:30 (when a real kitchen would be well into
+   * lunch) spread them across the boards like stageToday() does for a fresh
+   * demo, so a reviewer finds work at every stage whenever they look. Only
+   * if nobody has touched today's orders yet: a reviewer's clicks always win.
+   */
+  async stageTodayOnce(now = new Date()) {
+    const today = todayIST(now);
+    if (now < istInstant(today, '10:30')) return 0;
+    const where = {
+      deliveryDate: new Date(today),
+      status: 'CONFIRMED' as const,
+      company: { name: { in: DEMO_COMPANY_NAMES } },
+    };
+    const [orders, touched, settings] = await Promise.all([
+      this.db.order.findMany({ where, select: { id: true } }),
+      this.db.order.count({ where: { ...where, kitchenStartedAt: { not: null } } }),
+      this.db.settings.findUniqueOrThrow({ where: { id: 1 } }),
+    ]);
+    if (orders.length === 0 || touched > 0) return 0;
+    await this.stageToday(
+      orders.map((o) => o.id),
+      now,
+      settings,
+    );
+    return orders.length;
+  }
+
   async completePastDays(now = new Date()) {
     const today = todayIST(now);
     const [settings, stale] = await Promise.all([
