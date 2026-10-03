@@ -46,7 +46,9 @@ test.describe('catalogue', () => {
   test('kitchen can look at dishes but not change them', async ({ page, request }) => {
     await signIn(page, 'kitchen@test.com');
     await page.getByRole('link', { name: 'Dishes' }).click();
-    await expect(page.getByRole('cell', { name: 'Paneer Tikka Rice Bowl' })).toBeVisible();
+    await expect(
+      page.getByRole('cell', { name: 'Paneer Tikka Rice Bowl', exact: true }),
+    ).toBeVisible();
     await expect(page.getByRole('link', { name: 'New dish' })).toHaveCount(0);
 
     await apiSignIn(request, 'kitchen@test.com');

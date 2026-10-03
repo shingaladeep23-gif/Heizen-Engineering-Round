@@ -46,7 +46,7 @@ test.describe('kitchen board', () => {
 
     // Finishing a unit nobody started is allowed (it records a start too).
     await jeera.getByRole('button', { name: 'Done' }).click();
-    await expect(jeera.getByText('Done', { exact: true })).toBeVisible();
+    await expect(jeera.getByRole('button', { name: 'Done' })).toHaveCount(0); // gone once saved
 
     await page.goto(`/orders/${order.id}`);
     await expect(page.getByText('Kitchen started')).toBeVisible();
@@ -55,7 +55,7 @@ test.describe('kitchen board', () => {
     await page.goto('/kitchen');
     await page.getByLabel('Delivery date').fill(lockedDate());
     await brown.getByRole('button', { name: 'Done' }).click();
-    await expect(brown.getByText('Done', { exact: true })).toBeVisible();
+    await expect(brown.getByRole('button', { name: 'Done' })).toHaveCount(0);
     await page.goto(`/orders/${order.id}`);
     await expect(page.getByText('Kitchen ready', { exact: true })).toBeVisible();
   });

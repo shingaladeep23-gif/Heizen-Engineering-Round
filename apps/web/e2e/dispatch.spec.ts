@@ -36,9 +36,9 @@ test.describe('dispatch board', () => {
     await page.getByLabel('Delivery date').fill(lockedDate());
 
     await drop.getByRole('button', { name: 'Mark ready to go' }).click();
-    await expect(drop.getByText('Ready to go')).toBeVisible();
+    await expect(drop.getByText('Ready to go', { exact: true })).toBeVisible();
     await drop.getByRole('button', { name: 'Send out for delivery' }).click();
-    await expect(drop.getByText('Out for delivery')).toBeVisible();
+    await expect(drop.getByText('Out for delivery', { exact: true })).toBeVisible();
     await drop.getByRole('button', { name: 'Mark delivered' }).click();
     await expect(drop.getByText('Delivered', { exact: true })).toBeVisible();
 

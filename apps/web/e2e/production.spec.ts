@@ -247,9 +247,10 @@ test.describe('production journey', () => {
     ).toHaveCount(0);
     for (const choice of ['Brown rice', 'Jeera rice']) {
       await rows.filter({ hasText: choice }).getByRole('button', { name: 'Done' }).click();
+      // The Done button disappears only once the server has saved it.
       await expect(
-        rows.filter({ hasText: choice }).getByText('Done', { exact: true }),
-      ).toBeVisible();
+        rows.filter({ hasText: choice }).getByRole('button', { name: 'Done' }),
+      ).toHaveCount(0);
     }
     await page.goto(`/orders/${today.id}`);
     await expect(page.getByText('Kitchen ready', { exact: true })).toBeVisible();
@@ -262,9 +263,9 @@ test.describe('production journey', () => {
     await expect(drop).toContainText(`#${made.today}`);
     await expect(drop.getByRole('combobox', { name: /Driver for/ })).toHaveValue('Dev Driver');
     await drop.getByRole('button', { name: 'Mark ready to go' }).click();
-    await expect(drop.getByText('Ready to go')).toBeVisible();
+    await expect(drop.getByText('Ready to go', { exact: true })).toBeVisible();
     await drop.getByRole('button', { name: 'Send out for delivery' }).click();
-    await expect(drop.getByText('Out for delivery')).toBeVisible();
+    await expect(drop.getByText('Out for delivery', { exact: true })).toBeVisible();
   });
 
   test('the driver delivers it on a phone, with a note and a photo', async ({ page }) => {
@@ -318,7 +319,7 @@ test.describe('production journey', () => {
     await expect(page.getByText('Everything is invoiced.')).toBeVisible();
     const row = page.getByRole('row', { name: new RegExp(`Invoice #${made.invoice}\\b`) });
     await row.getByRole('button', { name: 'Mark paid' }).click();
-    await expect(row.getByText('Paid')).toBeVisible();
+    await expect(row.getByText('Paid', { exact: true })).toBeVisible();
     await page.goto(`/orders/${made.today}`);
     await expect(page.getByText(`Invoice #${made.invoice}`)).toBeVisible();
   });
@@ -399,11 +400,13 @@ test.describe('production journey', () => {
     await signIn(page, 'admin@test.com');
     await page.goto('/orders');
     await page.getByRole('button', { name: 'Run cut-off' }).click();
-    await page.getByLabel('Delivery date', { exact: true }).last().fill(dayIST(-1));
-    await page.getByRole('button', { name: 'Run cut-off' }).last().click();
-    await expect(page.getByText(/confirmed, \d+ drafts cancelled/)).toBeVisible();
-    await page.getByRole('button', { name: 'Run cut-off' }).last().click();
-    await expect(page.getByText(/0 confirmed, 0 drafts cancelled/)).toBeVisible();
+    const dialog = page.getByRole('dialog');
+    await dialog.getByLabel('Delivery date').fill(dayIST(-1));
+    await dialog.getByRole('button', { name: 'Run cut-off' }).click();
+    await expect(dialog.getByText(/confirmed, \d+ drafts cancelled/)).toBeVisible();
+    // Again: nothing left to do, so nothing changes.
+    await dialog.getByRole('button', { name: 'Run cut-off' }).click();
+    await expect(dialog.getByText(/0 confirmed, 0 drafts cancelled/)).toBeVisible();
   });
 
   test('every dashboard loads with real figures', async ({ page }) => {
