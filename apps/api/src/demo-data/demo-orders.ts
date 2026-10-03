@@ -7,6 +7,7 @@
 import type { PricedDish } from '@fernleaf/shared';
 import type { Prisma, PrismaClient } from '@prisma/client';
 import { MenuService } from '../menu/menu.service.js';
+import { DEMO_COMPANY_NAMES } from './catalogue-seed.js';
 import {
   addDays,
   cutoffFor,
@@ -29,7 +30,8 @@ const REJECT_REASONS = ['Out of paneer for that day', 'Duplicate of another orde
 
 // A tiny seeded random number generator: the same day always gets the same orders.
 function random(seed: string) {
-  let h = [...seed].reduce((a, c) => Math.imul(31, a) + c.charCodeAt(0), 7) | 0;
+  let h = 7;
+  for (let i = 0; i < seed.length; i++) h = (Math.imul(31, h) + seed.charCodeAt(i)) | 0;
   return () => {
     h = (h + 0x6d2b79f5) | 0;
     let t = Math.imul(h ^ (h >>> 15), 1 | h);
@@ -109,36 +111,38 @@ export class DemoOrders {
   ) {}
 
   /**
-   * Fills every open day from two weeks ago (first run only) to a week ahead
-   * with orders, but only days that have none yet. Existing orders, including
-   * anything a reviewer created, are never touched.
+   * Fills the last two weeks and the coming week with orders for the demo
+   * companies, one (day, company) at a time, but only where that company has
+   * no orders at all that day. Anything a reviewer (or a test) created is
+   * never touched and never blocks the rest of the day. Safe to stop halfway
+   * and run again: it carries on from what's missing.
    */
   async topUp(now = new Date()) {
-    const firstRun = (await this.db.order.count()) === 0;
     const today = todayIST(now);
-    const [settings, holidays, companies] = await Promise.all([
+    const from = addDays(today, -HISTORY_DAYS);
+    const [settings, holidays, companies, existing] = await Promise.all([
       this.db.settings.findUniqueOrThrow({ where: { id: 1 } }),
       this.db.kitchenHoliday.findMany(),
-      this.db.company.findMany({ include: { employees: true, addresses: true, holidays: true } }),
+      this.db.company.findMany({
+        where: { name: { in: DEMO_COMPANY_NAMES } },
+        include: { employees: true, addresses: true, holidays: true },
+      }),
+      this.db.order.findMany({
+        where: { deliveryDate: { gte: new Date(from) } },
+        distinct: ['deliveryDate', 'companyId'],
+        select: { deliveryDate: true, companyId: true },
+      }),
     ]);
     const kitchen: Calendar = {
       workingDays: settings.kitchenWorkingDays,
       holidays: new Set(holidays.map((h) => dayOf(h.date))),
     };
-    const filled = new Set(
-      (
-        await this.db.order.findMany({
-          where: { deliveryDate: { gte: new Date(addDays(today, -HISTORY_DAYS)) } },
-          distinct: ['deliveryDate'],
-          select: { deliveryDate: true },
-        })
-      ).map((o) => dayOf(o.deliveryDate)),
-    );
+    const filled = new Set(existing.map((o) => `${dayOf(o.deliveryDate)}|${o.companyId}`));
 
     let created = 0;
-    for (let offset = firstRun ? -HISTORY_DAYS : 0; offset <= AHEAD_DAYS; offset++) {
+    for (let offset = -HISTORY_DAYS; offset <= AHEAD_DAYS; offset++) {
       const day = addDays(today, offset);
-      if (filled.has(day) || !isOpen(kitchen, day)) continue;
+      if (!isOpen(kitchen, day)) continue;
       const cutoffAt = cutoffFor(day, kitchen, settings.cutoffDays, settings.cutoffTime);
       for (const company of companies) {
         const open = isOpen(
@@ -148,10 +152,12 @@ export class DemoOrders {
           },
           day,
         );
-        if (open) created += await this.ordersFor(company, day, offset, cutoffAt, now, settings);
+        if (open && !filled.has(`${day}|${company.id}`)) {
+          created += await this.ordersFor(company, day, offset, cutoffAt, now, settings);
+        }
       }
     }
-    if (firstRun) await this.invoiceHistory(today);
+    if ((await this.db.invoice.count()) === 0) await this.invoiceHistory(today);
     return created;
   }
 

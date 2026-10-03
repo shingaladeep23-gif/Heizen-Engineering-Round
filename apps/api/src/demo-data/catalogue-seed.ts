@@ -388,6 +388,8 @@ const COMPANIES: CompanySeed[] = [
   },
 ];
 
+export const DEMO_COMPANY_NAMES = COMPANIES.map((c) => c.name);
+
 const byName = <T extends { id: number; name: string }>(rows: T[]) =>
   new Map(rows.map((row) => [row.name, row.id]));
 const idsOf = (map: Map<string, number>, names: string[]) =>
@@ -401,7 +403,6 @@ export async function seedCatalogue(db: PrismaClient, driverId: number) {
   const stations = byName(await db.station.findMany());
   const allergens = byName(await db.allergen.findMany());
   const tags = byName(await db.dietaryTag.findMany());
-  const packaging = byName(await db.packagingType.findMany());
 
   // Tiers: Standard is typed in. Enterprise is Standard less 10%, Partner is
   // cost x 2.6, Startup is typed in but only for some dishes.
@@ -412,7 +413,6 @@ export async function seedCatalogue(db: PrismaClient, driverId: number) {
   await db.priceTier.create({ data: { name: 'Partner', base: 'COST', factor: 2.6 } });
   const startup = await db.priceTier.create({ data: { name: 'Startup' } });
   await db.settings.update({ where: { id: 1 }, data: { defaultTierId: standard.id } });
-  const tierIds = byName(await db.priceTier.findMany());
 
   for (const [name, cost, price, optionAllergens, optionTags] of OPTIONS) {
     const typed = [{ tierId: standard.id, price }];

@@ -52,27 +52,39 @@ export class DemoDataService implements OnApplicationBootstrap {
 
     if (DEMO_MODE) {
       await seedMissingCompanies(this.db, driver.id);
-      if ((await this.db.order.count()) === 0) {
-        // The demo kitchen cooks every day, so whatever day the review is on,
-        // the hospital client still has deliveries.
+      if ((await this.db.invoice.count()) === 0) {
+        // A fresh demo: the kitchen cooks every day, so whatever day the
+        // review is on, the hospital client still has deliveries.
         await this.db.settings.update({
           where: { id: 1 },
           data: { kitchenWorkingDays: [1, 2, 3, 4, 5, 6, 7] },
         });
       }
-      await this.refresh();
+      // Generating orders can take a few minutes against a remote database,
+      // so it runs in the background: the API starts listening straight away.
+      void this.refresh();
     }
     this.log.log('Demo data is in place');
   }
 
   // Hourly: make sure today and the coming week have orders, and wrap up
-  // past days. Cheap when there's nothing to do.
+  // past days. Cheap when there's nothing to do. Never runs twice at once.
+  private refreshing = false;
+
   @Interval(60 * 60_000)
   async refresh() {
-    if (!DEMO_MODE) return;
-    const completed = await this.orders.completePastDays();
-    const created = await this.orders.topUp();
-    if (completed || created)
-      this.log.log(`Demo refresh: ${created} new orders, ${completed} past orders wrapped up`);
+    if (!DEMO_MODE || this.refreshing) return;
+    this.refreshing = true;
+    try {
+      const completed = await this.orders.completePastDays();
+      const created = await this.orders.topUp();
+      if (completed || created) {
+        this.log.log(`Demo refresh: ${created} new orders, ${completed} past orders wrapped up`);
+      }
+    } catch (error) {
+      this.log.error(`Demo refresh failed: ${String(error)}`);
+    } finally {
+      this.refreshing = false;
+    }
   }
 }
