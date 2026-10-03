@@ -7,7 +7,6 @@ import {
   Card,
   Checkbox,
   Group,
-  Loader,
   MultiSelect,
   NumberInput,
   SegmentedControl,
@@ -25,6 +24,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useParams, useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import { MoneyInput } from '@/components/MoneyInput';
+import { Waiting } from '@/components/Waiting';
 import { api, useAction, useCan, useLists } from '@/lib/api';
 
 type Form = Required<Omit<DishInput, 'optionGroups'>> & {
@@ -88,7 +88,7 @@ export default function DishPage() {
     },
   );
 
-  if (!isNew && !dish.data) return <Loader />;
+  if (!isNew && !dish.data) return <Waiting error={dish.error} />;
 
   const groups = form.values.optionGroups;
   const optionChoices = toSelect(options.data?.filter((o) => o.active));

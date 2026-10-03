@@ -1,11 +1,12 @@
 'use client';
 
 import type { SettingsInput } from '@fernleaf/shared';
-import { Button, Card, Loader, NumberInput, SimpleGrid, Stack, Text, Title } from '@mantine/core';
+import { Button, Card, NumberInput, SimpleGrid, Stack, Text, Title } from '@mantine/core';
 import { TimeInput } from '@mantine/dates';
 import { useForm } from '@mantine/form';
 import { useQuery } from '@tanstack/react-query';
 import { Holidays, WorkingDays } from '@/components/CalendarInputs';
+import { Waiting } from '@/components/Waiting';
 import { api, useAction } from '@/lib/api';
 
 type Settings = Required<SettingsInput>;
@@ -102,7 +103,11 @@ export default function SettingsPage() {
       <Title order={2} mb="md">
         Settings
       </Title>
-      {settings.data ? <SettingsForm initial={settings.data} /> : <Loader />}
+      {settings.data ? (
+        <SettingsForm initial={settings.data} />
+      ) : (
+        <Waiting error={settings.error} />
+      )}
     </>
   );
 }

@@ -140,6 +140,7 @@ export class DemoOrders {
     const filled = new Set(existing.map((o) => `${dayOf(o.deliveryDate)}|${o.companyId}`));
 
     let created = 0;
+    const todayIds: number[] = [];
     for (let offset = -HISTORY_DAYS; offset <= AHEAD_DAYS; offset++) {
       const day = addDays(today, offset);
       if (!isOpen(kitchen, day)) continue;
@@ -153,10 +154,13 @@ export class DemoOrders {
           day,
         );
         if (open && !filled.has(`${day}|${company.id}`)) {
-          created += await this.ordersFor(company, day, offset, cutoffAt, now, settings);
+          const ids = await this.ordersFor(company, day, offset, cutoffAt, now, settings);
+          created += ids.length;
+          if (offset === 0) todayIds.push(...ids);
         }
       }
     }
+    if (todayIds.length) await this.stageToday(todayIds, now, settings);
     if ((await this.db.invoice.count()) === 0) await this.invoiceHistory(today);
     return created;
   }
@@ -184,9 +188,9 @@ export class DemoOrders {
     const people = [...company.employees]
       .sort(() => rand() - 0.5)
       .slice(0, 3 + Math.floor(rand() * 4));
-    let count = 0;
+    const ids: number[] = [];
 
-    for (const [index, employee] of people.entries()) {
+    for (const employee of people) {
       const menu = await this.menuFor(employee.id);
       if (menu.length === 0) continue;
       let built: ReturnType<typeof buildLines>;
@@ -242,30 +246,10 @@ export class DemoOrders {
           };
         }
       } else if (offset === 0) {
-        // Today: spread across the board. The earliest orders are already on
-        // the road, so the driver has something to deliver straight away.
-        const progress: Progress = (['out', 'out', 'ready', 'cooked', 'cooking', 'todo'] as const)[
-          Math.min(index, 5)
-        ];
-        // Nothing can have happened later than now: pull planned times back.
-        const steps = timeline(plan, progress, rand, settings.onTimeGraceMinutes);
-        const keys = [
-          'kitchenStartedAt',
-          'kitchenReadyAt',
-          'dispatchReadyAt',
-          'outForDeliveryAt',
-        ] as const;
-        keys.forEach((key, i) => {
-          const at = steps[key];
-          if (at && at > now) steps[key] = minutesBefore(now, (keys.length - i) * 6);
-        });
+        // Today: confirmed for now; stageToday() then spreads the day's drops
+        // across the board.
         status = 'CONFIRMED';
-        extra = {
-          placedAt: createdAt,
-          confirmedAt: cutoffAt,
-          driverId: company.defaultDriverId,
-          ...steps,
-        };
+        extra = { placedAt: createdAt, confirmedAt: cutoffAt, driverId: company.defaultDriverId };
       } else if (cutoffAt <= now) {
         status = 'CONFIRMED';
         extra = { placedAt: createdAt, confirmedAt: cutoffAt, driverId: company.defaultDriverId };
@@ -276,7 +260,7 @@ export class DemoOrders {
 
       const done = extra.kitchenReadyAt ?? null;
       const started = extra.kitchenStartedAt ?? null;
-      await this.db.order.create({
+      const order = await this.db.order.create({
         data: {
           employeeId: employee.id,
           companyId: company.id,
@@ -303,9 +287,79 @@ export class DemoOrders {
           },
         },
       });
-      count++;
+      ids.push(order.id);
     }
-    return count;
+    return ids;
+  }
+
+  /**
+   * Spreads today's new orders across the board, a whole drop at a time,
+   * earliest first: one drop out for delivery, one cooking, one ready to go,
+   * one still to do, one cooked, and round again. So every board has
+   * something to show whatever day it is, and a drop is never half out.
+   */
+  private async stageToday(
+    ids: number[],
+    now: Date,
+    settings: { kitchenBufferMinutes: number; onTimeGraceMinutes: number },
+  ) {
+    const orders = await this.db.order.findMany({
+      where: { id: { in: ids } },
+      orderBy: [{ deliveryTime: 'asc' }, { companyId: 'asc' }],
+      include: { company: true, lines: { include: { combos: true } } },
+    });
+    const drops = new Map<string, typeof orders>();
+    for (const order of orders) {
+      const key = `${order.companyId}|${order.addressId}|${order.deliveryTime}`;
+      drops.set(key, [...(drops.get(key) ?? []), order]);
+    }
+    const PATTERN: Progress[] = ['out', 'cooking', 'ready', 'todo', 'cooked'];
+    for (const [rank, drop] of [...drops.values()].entries()) {
+      for (const order of drop) {
+        const plan = plannedTimes(
+          dayOf(order.deliveryDate),
+          order.deliveryTime,
+          order.company.dispatchLeadMinutes,
+          settings.kitchenBufferMinutes,
+        );
+        const steps = timeline(
+          plan,
+          PATTERN[rank % PATTERN.length],
+          random(`${order.id}`),
+          settings.onTimeGraceMinutes,
+        );
+        // Nothing can have happened later than now: pull planned times back.
+        const keys = [
+          'kitchenStartedAt',
+          'kitchenReadyAt',
+          'dispatchReadyAt',
+          'outForDeliveryAt',
+        ] as const;
+        keys.forEach((key, i) => {
+          const at = steps[key];
+          if (at && at > now) steps[key] = minutesBefore(now, (keys.length - i) * 6);
+        });
+        await this.db.order.update({
+          where: { id: order.id },
+          data: {
+            kitchenStartedAt: steps.kitchenStartedAt,
+            kitchenReadyAt: steps.kitchenReadyAt,
+            dispatchReadyAt: steps.dispatchReadyAt,
+            outForDeliveryAt: steps.outForDeliveryAt,
+          },
+        });
+        // Units are done when the order is; an order being cooked has started its first.
+        for (const [i, combo] of order.lines.flatMap((l) => l.combos).entries()) {
+          await this.db.orderCombo.update({
+            where: { id: combo.id },
+            data: {
+              doneAt: steps.kitchenReadyAt,
+              startedAt: steps.kitchenReadyAt ?? (i === 0 ? steps.kitchenStartedAt : null),
+            },
+          });
+        }
+      }
+    }
   }
 
   // Older weeks are invoiced (and mostly paid); the last few days aren't yet.

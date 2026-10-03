@@ -1,10 +1,11 @@
 'use client';
 
 import { formatMoney, type AdminDashboard as Data } from '@fernleaf/shared';
-import { Alert, Card, Group, Loader, SimpleGrid, Stack, Table, Text, Title } from '@mantine/core';
+import { Alert, Card, Group, SimpleGrid, Stack, Table, Text, Title } from '@mantine/core';
 import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
 import { Stat } from '@/components/Stat';
+import { Waiting } from '@/components/Waiting';
 import { api } from '@/lib/api';
 import { formatDay } from '@/lib/format';
 
@@ -16,7 +17,7 @@ export function AdminDashboard() {
     queryKey: ['dashboard', 'admin'],
     queryFn: () => api<Data>('/dashboard/admin'),
   });
-  if (!query.data) return <Loader />;
+  if (!query.data) return <Waiting error={query.error} />;
   const { today, upcoming, money, lastWeek, topDishes, tiersMissingPrices } = query.data;
 
   return (

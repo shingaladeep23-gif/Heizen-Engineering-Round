@@ -38,3 +38,8 @@ export const STATUS_COLORS: Record<OrderStatus, string> = {
 
 export const statusLabel = (status: OrderStatus) =>
   status.charAt(0) + status.slice(1).toLowerCase();
+
+// Today's date in IST as 'YYYY-MM-DD' (or n days from today), whatever the
+// browser's own time zone is.
+export const todayIST = (plusDays = 0) =>
+  new Date(Date.now() + 330 * 60_000 + plusDays * 86_400_000).toISOString().slice(0, 10);

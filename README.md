@@ -333,6 +333,7 @@ I did the [Must] items properly first, then went over them again with tests, rat
 | When an order became confirmed | At the cut-off moment itself, even if processing ran later, because that's when it became billable. |
 | Lines after confirmation | Can't be edited, so order totals (and invoices) stay fixed. Admins can change delivery details, cancel, reject or credit. |
 | Overdue invoices | Unpaid for more than 14 days. |
+| "Lists are paginated on the server" | The order list, which grows without limit, is paginated on the server (20 per page) with server-side search and filters. Reference lists (dishes, options, tiers, companies, staff) are small and loaded whole. A company's "not invoiced yet" list is bounded by its billing cycle, and staff tick items across the whole list to build an invoice, so it isn't split into pages. |
 
 ---
 

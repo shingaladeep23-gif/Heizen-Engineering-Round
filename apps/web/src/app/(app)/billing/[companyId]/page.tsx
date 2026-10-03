@@ -1,22 +1,12 @@
 'use client';
 
 import { formatMoney, type CompanyBilling } from '@fernleaf/shared';
-import {
-  Badge,
-  Button,
-  Card,
-  Checkbox,
-  Group,
-  Loader,
-  Stack,
-  Table,
-  Text,
-  Title,
-} from '@mantine/core';
+import { Badge, Button, Card, Checkbox, Group, Stack, Table, Text, Title } from '@mantine/core';
 import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useState } from 'react';
+import { Waiting } from '@/components/Waiting';
 import { api, useAction, useCan } from '@/lib/api';
 import { formatDateTime, formatDay, statusLabel } from '@/lib/format';
 
@@ -55,7 +45,7 @@ export default function CompanyBillingPage() {
     },
   );
 
-  if (!billing.data) return <Loader />;
+  if (!billing.data) return <Waiting error={billing.error} />;
   const { company, unbilledOrders, unbilledCredits, invoices } = billing.data;
   const orders = unbilledOrders.filter((o) => !skipped.has(`o${o.id}`));
   const credits = unbilledCredits.filter((c) => !skipped.has(`c${c.id}`));

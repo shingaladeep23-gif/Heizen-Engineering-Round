@@ -7,7 +7,6 @@ import {
   Button,
   Card,
   Group,
-  Loader,
   Modal,
   Select,
   SimpleGrid,
@@ -25,6 +24,7 @@ import { useParams } from 'next/navigation';
 import { useState, type ReactNode } from 'react';
 import { MoneyInput } from '@/components/MoneyInput';
 import { valuesFromOrder } from '@/components/OrderForm';
+import { Waiting } from '@/components/Waiting';
 import { api, useAction, useCan, useLists } from '@/lib/api';
 import { formatDateTime, formatDay, formatTime, STATUS_COLORS, statusLabel } from '@/lib/format';
 
@@ -134,7 +134,7 @@ export default function OrderPage() {
     ...done,
   });
 
-  if (!order.data) return <Loader />;
+  if (!order.data) return <Waiting error={order.error} />;
   const o = order.data;
 
   return (

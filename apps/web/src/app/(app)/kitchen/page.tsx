@@ -18,9 +18,7 @@ import Link from 'next/link';
 import { useState } from 'react';
 import { Stat } from '@/components/Stat';
 import { api, useAction, useCan } from '@/lib/api';
-import { formatDay, formatTime } from '@/lib/format';
-
-const todayIST = () => new Date(Date.now() + 330 * 60_000).toISOString().slice(0, 10);
+import { formatDay, formatTime, todayIST } from '@/lib/format';
 
 const STATE: Record<UnitState, { label: string; color: string; row?: string }> = {
   late: { label: 'Late', color: 'red', row: 'var(--mantine-color-red-0)' },

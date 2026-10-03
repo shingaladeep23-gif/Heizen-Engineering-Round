@@ -1,10 +1,11 @@
 'use client';
 
 import type { OrderDetail } from '@fernleaf/shared';
-import { Loader, Title } from '@mantine/core';
+import { Title } from '@mantine/core';
 import { useQuery } from '@tanstack/react-query';
 import { useParams } from 'next/navigation';
 import { OrderForm, valuesFromOrder } from '@/components/OrderForm';
+import { Waiting } from '@/components/Waiting';
 import { api } from '@/lib/api';
 
 export default function EditOrderPage() {
@@ -13,7 +14,7 @@ export default function EditOrderPage() {
     queryKey: ['order', id],
     queryFn: () => api<OrderDetail>(`/orders/${id}`),
   });
-  if (!order.data) return <Loader />;
+  if (!order.data) return <Waiting error={order.error} />;
   return (
     <>
       <Title order={2} mb="md">

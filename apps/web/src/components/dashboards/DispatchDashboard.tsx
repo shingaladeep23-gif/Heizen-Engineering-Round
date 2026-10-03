@@ -1,15 +1,14 @@
 'use client';
 
 import type { Drop } from '@fernleaf/shared';
-import { Button, Card, Group, Loader, SimpleGrid, Stack, Table, Text, Title } from '@mantine/core';
+import { Button, Card, Group, SimpleGrid, Stack, Table, Text, Title } from '@mantine/core';
 import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
 import { STAGES } from '@/components/DropCard';
 import { Stat } from '@/components/Stat';
+import { Waiting } from '@/components/Waiting';
 import { api } from '@/lib/api';
-import { formatTime } from '@/lib/format';
-
-const todayIST = () => new Date(Date.now() + 330 * 60_000).toISOString().slice(0, 10);
+import { formatTime, todayIST } from '@/lib/format';
 
 // What a dispatcher needs: what's leaving next, what's slipping, and who's
 // driving what. Built from the dispatch board's own data.
@@ -19,7 +18,7 @@ export function DispatchDashboard() {
     queryFn: () => api<Drop[]>(`/dispatch/drops?date=${todayIST()}`),
     refetchInterval: 60_000,
   });
-  if (!query.data) return <Loader />;
+  if (!query.data) return <Waiting error={query.error} />;
   const drops = query.data;
   const delivered = drops.filter((d) => d.stage === 'delivered');
   const waiting = drops

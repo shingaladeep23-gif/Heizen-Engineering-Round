@@ -1,16 +1,14 @@
 'use client';
 
 import type { KitchenBoard, KitchenUnit } from '@fernleaf/shared';
-import { Button, Card, Group, Loader, SimpleGrid, Stack, Table, Text, Title } from '@mantine/core';
+import { Button, Card, Group, SimpleGrid, Stack, Table, Text, Title } from '@mantine/core';
 import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
 import { Stat } from '@/components/Stat';
+import { Waiting } from '@/components/Waiting';
 import { api } from '@/lib/api';
-import { formatDay, formatTime } from '@/lib/format';
+import { formatDay, formatTime, todayIST } from '@/lib/format';
 
-const todayIST = () => new Date(Date.now() + 330 * 60_000).toISOString().slice(0, 10);
-const tomorrowIST = () =>
-  new Date(Date.now() + 330 * 60_000 + 86_400_000).toISOString().slice(0, 10);
 const portions = (units: KitchenUnit[]) => units.reduce((s, u) => s + u.quantity, 0);
 
 // What a kitchen lead needs at 6am: how much, of what, at which station, and
@@ -22,10 +20,10 @@ export function KitchenDashboard() {
     refetchInterval: 60_000,
   });
   const tomorrow = useQuery({
-    queryKey: ['kitchen', tomorrowIST()],
-    queryFn: () => api<KitchenBoard>(`/kitchen?date=${tomorrowIST()}`),
+    queryKey: ['kitchen', todayIST(1)],
+    queryFn: () => api<KitchenBoard>(`/kitchen?date=${todayIST(1)}`),
   });
-  if (!today.data) return <Loader />;
+  if (!today.data) return <Waiting error={today.error} />;
 
   // Only confirmed work counts for today; placed orders aren't final yet.
   const units = today.data.units.filter((u) => u.state !== 'waiting');

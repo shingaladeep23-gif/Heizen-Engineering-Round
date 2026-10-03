@@ -1,10 +1,11 @@
 'use client';
 
 import { formatMoney, type InvoiceDetail } from '@fernleaf/shared';
-import { Badge, Card, Group, Loader, Stack, Table, Text, Title } from '@mantine/core';
+import { Badge, Card, Group, Stack, Table, Text, Title } from '@mantine/core';
 import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
+import { Waiting } from '@/components/Waiting';
 import { api } from '@/lib/api';
 import { formatDateTime, formatDay, statusLabel } from '@/lib/format';
 
@@ -14,7 +15,7 @@ export default function InvoicePage() {
     queryKey: ['billing', 'invoice', id],
     queryFn: () => api<InvoiceDetail>(`/billing/invoices/${id}`),
   });
-  if (!invoice.data) return <Loader />;
+  if (!invoice.data) return <Waiting error={invoice.error} />;
   const inv = invoice.data;
   const ordersTotal = inv.orders.reduce((s, o) => s + o.total, 0);
 

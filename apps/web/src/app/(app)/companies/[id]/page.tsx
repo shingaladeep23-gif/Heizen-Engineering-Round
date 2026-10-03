@@ -13,7 +13,6 @@ import {
   Button,
   Card,
   Group,
-  Loader,
   Modal,
   MultiSelect,
   NumberInput,
@@ -35,6 +34,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useParams, useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { Holidays, WorkingDays } from '@/components/CalendarInputs';
+import { Waiting } from '@/components/Waiting';
 import { api, useAction, useCan, useLists } from '@/lib/api';
 
 type Form = Required<CompanyInput>;
@@ -435,7 +435,7 @@ export default function CompanyPage() {
     enabled: id !== null,
   });
   if (id === null) return <CompanyForm id={null} initial={EMPTY} employees={[]} />;
-  if (!company.data) return <Loader />;
+  if (!company.data) return <Waiting error={company.error} />;
   // Remount when the data changes so the form picks up saved values.
   return (
     <CompanyForm

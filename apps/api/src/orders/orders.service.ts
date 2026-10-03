@@ -142,13 +142,25 @@ export class OrdersService {
     if (!info.addresses.some((a) => a.id === addressId)) {
       throw bad('addressId', "That address doesn't belong to this employee's company");
     }
-    if (deliveryTime !== info.defaults.deliveryTime && !info.allowed.time) {
+    // Changing a detail away from the company default needs the employee's
+    // permission. Keeping what an existing order already has is always fine,
+    // even if the company's default has moved on since.
+    const existing = id === null ? null : await this.db.order.findUnique({ where: { id } });
+    const changed = (value: unknown, fallback: unknown, kept: unknown) =>
+      value !== fallback && !(existing && value === kept);
+    if (
+      changed(deliveryTime, info.defaults.deliveryTime, existing?.deliveryTime) &&
+      !info.allowed.time
+    ) {
       throw bad('deliveryTime', "This employee can't change the delivery time");
     }
-    if (addressId !== info.defaults.addressId && !info.allowed.address) {
+    if (changed(addressId, info.defaults.addressId, existing?.addressId) && !info.allowed.address) {
       throw bad('addressId', "This employee can't choose their own address");
     }
-    if (packagingTypeId !== info.defaults.packagingTypeId && !info.allowed.packaging) {
+    if (
+      changed(packagingTypeId, info.defaults.packagingTypeId, existing?.packagingTypeId) &&
+      !info.allowed.packaging
+    ) {
       throw bad('packagingTypeId', "This employee can't change the packaging");
     }
 

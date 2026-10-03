@@ -15,3 +15,5 @@ services:
         sync: false # pasted by hand in the Render dashboard (Neon connection string)
       - key: JWT_SECRET
         generateValue: true
+      - key: DEMO_MODE
+        value: 'true' # keeps realistic orders for today and the coming week (see README)

@@ -6,9 +6,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { DropCard, STAGES } from '@/components/DropCard';
 import { api, useAction, useCan } from '@/lib/api';
-import { formatDay } from '@/lib/format';
-
-const todayIST = () => new Date(Date.now() + 330 * 60_000).toISOString().slice(0, 10);
+import { formatDay, todayIST } from '@/lib/format';
 
 // The one next step for a drop at each stage.
 const NEXT: Partial<Record<Drop['stage'], { step: DropStep; label: string }>> = {

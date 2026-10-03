@@ -4,6 +4,7 @@ import type { Drop, DropStage } from '@fernleaf/shared';
 import { Badge, Card, Group, Stack, Text } from '@mantine/core';
 import Link from 'next/link';
 import type { ReactNode } from 'react';
+import { useCan } from '@/lib/api';
 import { formatTime } from '@/lib/format';
 
 export const STAGES: Record<DropStage, { label: string; color: string }> = {
@@ -17,6 +18,7 @@ export const STAGES: Record<DropStage, { label: string; color: string }> = {
 // One drop: where it's going, what's in it and how far along it is.
 // Shared by the dispatch board and the driver's phone view.
 export function DropCard({ drop, children }: { drop: Drop; children?: ReactNode }) {
+  const canOpenOrders = useCan('orders.view'); // drivers can't, so no dead links for them
   const stage = STAGES[drop.stage];
   const cooked = drop.orders.filter((o) => o.kitchenReady).length;
   return (
@@ -65,7 +67,8 @@ export function DropCard({ drop, children }: { drop: Drop; children?: ReactNode 
       <Stack gap={0} mt="xs">
         {drop.orders.map((order) => (
           <Text key={order.id} size="xs">
-            <Link href={`/orders/${order.id}`}>#{order.id}</Link> {order.employee}: {order.items}
+            {canOpenOrders ? <Link href={`/orders/${order.id}`}>#{order.id}</Link> : `#${order.id}`}{' '}
+            {order.employee}: {order.items}
             {!order.kitchenReady && drop.stage === 'cooking' && (
               <Text span c="orange.8">
                 {' '}
