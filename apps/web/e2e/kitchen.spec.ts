@@ -127,7 +127,7 @@ test('only the kitchen (and admins) can work the board', async ({ request }) => 
 
 test('the kitchen board loads for today', async ({ page }) => {
   await signIn(page, 'kitchen@test.com');
-  await page.getByRole('link', { name: 'Kitchen board' }).click();
+  await page.getByRole('link', { name: 'Kitchen board', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Kitchen board' })).toBeVisible();
   await expect(page.getByText('Portions left')).toBeVisible();
 });
