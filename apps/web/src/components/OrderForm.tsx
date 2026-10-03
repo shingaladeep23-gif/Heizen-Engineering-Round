@@ -27,7 +27,7 @@ import {
 import { TimeInput } from '@mantine/dates';
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { api, useAction, useLists } from '@/lib/api';
 import { formatDateTime } from '@/lib/format';
 
@@ -243,17 +243,12 @@ export function OrderForm({ orderId, initial }: { orderId?: number; initial?: Or
     enabled: !!employeeId,
   });
 
-  // Fill in the company defaults for anything not chosen yet.
-  useEffect(() => {
-    if (!info.data) return;
-    const { defaults } = info.data;
-    setValues((v) => ({
-      ...v,
-      deliveryTime: v.deliveryTime || defaults.deliveryTime,
-      addressId: v.addressId ?? defaults.addressId,
-      packagingTypeId: v.packagingTypeId ?? defaults.packagingTypeId,
-    }));
-  }, [info.data]);
+  // Nothing chosen yet means the company default. The server applies the
+  // same defaults when a field is sent empty.
+  const defaults = info.data?.defaults;
+  const shownTime = values.deliveryTime || defaults?.deliveryTime || '';
+  const shownAddress = values.addressId ?? defaults?.addressId ?? null;
+  const shownPackaging = values.packagingTypeId ?? defaults?.packagingTypeId ?? null;
 
   const dishes = new Map(
     (menu.data?.categories ?? []).flatMap((c) => c.dishes).map((d) => [d.id, d]),
@@ -345,7 +340,7 @@ export function OrderForm({ orderId, initial }: { orderId?: number; initial?: Or
               allowed?.time ? undefined : 'Company default; this employee can’t change it'
             }
             disabled={!allowed?.time}
-            value={values.deliveryTime}
+            value={shownTime}
             onChange={(e) => set({ deliveryTime: e.currentTarget.value })}
           />
           <Select
@@ -355,7 +350,7 @@ export function OrderForm({ orderId, initial }: { orderId?: number; initial?: Or
             }
             disabled={!allowed?.address}
             data={info.data.addresses.map((a) => ({ value: String(a.id), label: a.label }))}
-            value={values.addressId ? String(values.addressId) : null}
+            value={shownAddress ? String(shownAddress) : null}
             onChange={(v) => set({ addressId: v ? Number(v) : null })}
           />
           <Select
@@ -368,7 +363,7 @@ export function OrderForm({ orderId, initial }: { orderId?: number; initial?: Or
               value: String(p.id),
               label: p.name,
             }))}
-            value={values.packagingTypeId ? String(values.packagingTypeId) : null}
+            value={shownPackaging ? String(shownPackaging) : null}
             onChange={(v) => set({ packagingTypeId: v ? Number(v) : null })}
           />
         </SimpleGrid>
