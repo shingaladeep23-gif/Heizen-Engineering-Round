@@ -441,7 +441,7 @@ test.describe('production journey', () => {
     await expect(page.getByRole('cell', { name: `qa.tester@${QA_DOMAIN}` })).toBeVisible();
 
     await page.goto('/staff');
-    await expect(page.getByRole('cell', { name: 'driver@test.com' })).toBeVisible();
+    await expect(page.getByRole('cell', { name: 'driver@test.com', exact: true })).toBeVisible();
     await page.goto('/settings');
     await expect(page.getByLabel('Cut-off time')).toHaveValue(/\d\d:\d\d/);
   });
