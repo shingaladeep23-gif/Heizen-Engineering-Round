@@ -322,7 +322,7 @@ I did the [Must] items properly first and went over them again with tests. With 
 | Which calendar a delivery date must respect | Both the company's (spec) and the kitchen's (someone has to cook that day). |
 | Ordering after the cut-off | Only an admin. Placing then confirms immediately, because that date's cut-off has already run. Drafts can't be saved after the cut-off. |
 | Secret categories | Not listed on an employee's menu, but staff can open them in the preview and order from them. |
-| Allergies and diet | Shown as warnings on the dish ("Contains Peanuts", "Not marked Vegan"), not hidden. Staff order on the employee's behalf, and the employee might have asked for it. |
+| Allergies and diet | Shown as warnings, not hidden: on the dish ("Contains Peanuts", "Not marked Vegan") and on each option that clashes with an allergy ("Raita ⚠ Contains Dairy"). Staff order on the employee's behalf, and the employee might have asked for it. |
 | Employee emails | Must be on one of their company's domains. Moving someone to another company needs an email on that company's domain. |
 | Who can create orders | Admin only, per the role table. Kitchen and dispatch can view orders. |
 | What the kitchen board shows | Confirmed orders to work on, plus placed ones greyed out ("not confirmed yet"), so the kitchen sees what's coming. |
@@ -339,7 +339,7 @@ I did the [Must] items properly first and went over them again with tests. With 
 
 ## Tests
 
-The spec asked for tests on the rules most likely to break. Those are the pure-function unit tests (Vitest, **49 tests** in `apps/api/src/**/*.spec.ts`):
+The spec asked for tests on the rules most likely to break. Those are the pure-function unit tests (Vitest, **50 tests** in `apps/api/src/**/*.spec.ts`):
 - **cut-off calculation:** the spec's own Wednesday → Monday 16:00 example, weekends, kitchen holidays, same-day cut-off, and "today in IST" while UTC is still on yesterday
 - **pricing resolution:** typed, derived from cost and from a tier, overrides, missing base, zero cost, rounding with 1.15 (which floats can't hold exactly)
 - **combination counting:** the spec's 6 + 4 = 10 example, quantities that don't add up, a skipped required group, too many choices, unknown options, duplicate combinations, minimum quantity
@@ -347,7 +347,7 @@ The spec asked for tests on the rules most likely to break. Those are the pure-f
 - kitchen unit states and dispatch step order
 - the CSV parser and import rules (quoted commas, Windows line endings, every kind of bad row)
 
-**Playwright** (**70 tests** in `apps/web/e2e`) drives a real browser against **production builds** of both apps and a real Postgres. It covers:
+**Playwright** (**96 tests** in `apps/web/e2e`) drives a real browser against **production builds** of both apps and a real Postgres. It covers:
 - each role's sign-in and landing page
 - server-side 403s for every role on things they shouldn't touch
 - creating a dish
@@ -359,6 +359,22 @@ The spec asked for tests on the rules most likely to break. Those are the pure-f
 - the whole kitchen → dispatch → driver flow, on a phone-sized screen
 - billing with credits
 - companies, employees and settings
+
+Within those, **every screen as every role** (`e2e/screens.spec.ts`, 26 tests) works the app only through the browser, the way staff do, with good and bad input:
+- each role's menu and landing page, and a clear "no access" on every page a role can't use
+- every form's mistakes coming back next to the right field: sign-in, staff, reference lists, options, dishes and option groups, tiers, menu, companies (public, taken and malformed domains, holidays without a date, limits), employees
+- the order form refusing each kind of bad combination with a message that names the dish and the choice, drafts, placing, editing, cancelling, the cut-off, admin overrides, credits and rejection
+- the kitchen board, the dispatch board and the driver's phone view, button by button
+- billing: choosing what goes on an invoice, totals, paid, credits after cancelling
+- every admin screen at phone width, with nothing wider than the screen
+
+Writing it found six problems, all fixed:
+- saving an employee also saved the company form behind it
+- adding an employee threw away unsaved edits on the company
+- editing an order whose dish had left the menu hid the line, so the order couldn't be saved
+- pages a role can't use showed an empty form instead of saying so
+- toasts covered the buttons you'd press next
+- wide tables pushed phone screens sideways
 
 **A production journey** (`e2e/production.spec.ts`, **19 tests**) runs only against the live site and walks the whole business in order:
 - the catalogue screens and the menu preview
@@ -396,7 +412,7 @@ The spec asks for realistic data, including orders for whatever day the review h
 - **On an empty database** it creates the catalogue (15 dishes, 14 options), four price tiers, five Bengaluru companies with 29 employees, and two weeks of order history.
 - **On startup and every hour** it makes sure today and the next 7 days have orders. It only fills days with **no orders at all**, so it never touches anything you create.
   - **past days:** mostly delivered with realistic timings (about one in six late), some cancelled and rejected
-  - **today:** spread across the boards, with the earliest drops already out for delivery to driver@test.com
+  - **today:** spread across the boards, with the earliest drops already out for delivery to driver@test.com. Today's orders were made a week earlier as future orders, so from 10:30 IST the hourly refresh does this once a day, and only if nobody has touched today's orders yet. Before 10:30 the kitchen simply hasn't started, which is what a 6 am kitchen lead should see.
   - **future days:** confirmed if their cut-off has passed, otherwise placed, with a few drafts
 - **Every demo order goes through the real rules:** the employee's own menu and the same `buildLines()` the API uses. Demo orders are always priced on the right tier and respect hidden items and required choices.
 - **Weekends:** the demo kitchen works seven days, Orbit Health (a hospital) orders every day and Bluepeak Monday to Saturday, so a weekend review still has deliveries.

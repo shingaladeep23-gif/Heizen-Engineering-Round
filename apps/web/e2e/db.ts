@@ -10,13 +10,17 @@ const db = new PrismaClient({
 
 const todayIST = () => new Date(Date.now() + 330 * 60_000).toISOString().slice(0, 10);
 
-/** A cooked order for today, ready to go and out for delivery with the given driver. */
-export async function todayOutForDelivery(driverEmail: string | null) {
+/**
+ * A cooked order for today, ready to go and out for delivery with the given
+ * driver. For Priya Raman unless another employee is named by id, so a test
+ * can keep its drops to its own company.
+ */
+export async function todayOutForDelivery(driverEmail: string | null, employeeId?: number) {
   const driver = driverEmail
     ? await db.user.findUniqueOrThrow({ where: { email: driverEmail } })
     : null;
   const employee = await db.employee.findFirstOrThrow({
-    where: { name: 'Priya Raman' },
+    where: employeeId ? { id: employeeId } : { name: 'Priya Raman' },
     include: { company: true },
   });
   // A unique time later today, so the drop is ours alone and still on time.
