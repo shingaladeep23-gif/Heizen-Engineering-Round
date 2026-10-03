@@ -881,8 +881,9 @@ test.describe('business rules on the live site', () => {
   test('kitchen: units, start/done rules, roll-ups, stations and late or at-risk work', async ({
     page,
   }) => {
-    const later = timeFromNow(240);
-    test.skip(!later, 'needs four hours left in the IST day');
+    // Due in 2.5 h: cooked by +1h 15m, well clear of the 30-minute at-risk window.
+    const later = timeFromNow(150);
+    test.skip(!later, 'needs two and a half hours left in the IST day');
     s.times.later = later!;
     // X and Y share a time and address (one drop), Z is the same time at the
     // other address (another drop).
@@ -1174,7 +1175,8 @@ test.describe('business rules on the live site', () => {
     page,
   }) => {
     const mine = await allOrders(`companyId=${s.companyA}`);
-    expect(mine.length).toBeGreaterThanOrEqual(5);
+    // The draft, two placed orders and tomorrow's always exist; today's only before 8 pm IST.
+    expect(mine.length).toBeGreaterThanOrEqual(4);
     expect(mine.every((o) => o.company.name === COMPANY_A)).toBe(true);
 
     const today = await allOrders(`companyId=${s.companyA}&from=${istDay()}&to=${istDay()}`);
