@@ -68,7 +68,7 @@ Useful scripts from the repo root:
 | `npm run check` | lint + type-check + unit tests + Playwright, the same thing the pre-commit hook runs |
 | `npm test` | unit tests (Vitest) |
 | `npm run test:e2e` | Playwright against production builds of both apps (Postgres must be running) |
-| `BASE_URL=https://fernleaf.vercel.app npm run test:e2e` | the same suite against the live site; tests that change data skip themselves |
+| `BASE_URL=https://fernleaf.vercel.app QA_DATABASE_URL=... npm run test:e2e` | the same suite against the live site, plus the live-only checks (see [Tests](#tests)) |
 
 ---
 
@@ -190,7 +190,7 @@ The server re-prices everything itself; the form's totals are only a preview.
 
 **Billing (4.9).** See [the decision on invoiced orders](#key-decisions-and-trade-offs).
 
-**Concurrency (section 7).** Status changes are compare-and-set (`UPDATE … WHERE status = what I read`), so if two people cancel the same order, one wins and the other gets "someone else just changed this order". Kitchen actions lock the order row first, so two cooks can't both finish the same unit, and the last two units of an order can't both miss "kitchen ready". Dispatch steps lock every order in the drop. Invoicing claims orders with `WHERE invoiceId IS NULL`, so two people invoicing the same order can't both succeed. Each of these is tested with simultaneous requests.
+**Concurrency (section 7).** Cancelling and rejecting lock the order row and check it's still in the status the person saw, so if two people cancel the same order, one wins and the other gets "someone else just changed this order". The credit for an invoiced order is raised in the same transaction, from the locked row, so a cancel that lands just as someone invoices the order can't lose its credit. Kitchen actions lock the order row first, so two cooks can't both finish the same unit, and the last two units of an order can't both miss "kitchen ready". Dispatch steps lock every order in the drop. Invoicing claims orders with `WHERE invoiceId IS NULL AND status is still billable`, so two people invoicing the same order can't both succeed, and an order cancelled mid-invoice can't slip onto it. Each of these is tested with simultaneous requests.
 
 ---
 
@@ -347,7 +347,7 @@ The spec asked for tests on the rules most likely to break. Those are the pure-f
 - kitchen unit states and dispatch step order
 - the CSV parser and import rules (quoted commas, Windows line endings, every kind of bad row)
 
-**Playwright** (**69 tests** in `apps/web/e2e`) drives a real browser against **production builds** of both apps and a real Postgres. It covers:
+**Playwright** (**70 tests** in `apps/web/e2e`) drives a real browser against **production builds** of both apps and a real Postgres. It covers:
 - each role's sign-in and landing page
 - server-side 403s for every role on things they shouldn't touch
 - creating a dish
@@ -371,9 +371,21 @@ The spec asked for tests on the rules most likely to break. Those are the pure-f
 - double invoicing refused, a short-delivery credit, a credit-only invoice, and cancelling an invoiced order
 - simultaneous cancels, search and filters, the cut-off run, every dashboard, the company and settings screens, a CSV employee import, and the permission matrix
 
-It only creates data for one internal company, **"Fernleaf QA (test client)"**, so the demo companies stay as they are. Running it found two real problems that local tests couldn't: transactions timing out on the hosted database, and pages showing nothing when a request failed. Both are fixed.
+Running it found two real problems that local tests couldn't: transactions timing out on the hosted database, and pages showing nothing when a request failed. Both are fixed.
 
-A local **pre-commit hook** runs lint, type-check, unit tests and Playwright, and blocks the commit if anything fails. Every commit after the first few setup commits went through it. The same Playwright suite runs against the live site with `BASE_URL=...`; tests that would change data skip themselves there.
+**Business rules on the live site** (`e2e/production-rules.spec.ts`, **19 tests**) go after the edges of section 4 on the real deployment. They build their own dish, options, tiers, secret category, two companies and staff, then check:
+- refusals, each with an error on the right field: bad combinations, minimum quantity, missing required choices, a dish not on that employee's menu, delivery details the employee may not change, closed and past dates, public or taken domains, an owner from another company
+- pricing: every derived price on a cost × 2.4 tier and a Standard + 15% tier against the maths done independently, the spec's 2.11 → 2.15 rounding, overrides, and "no price means not on the menu"
+- past orders keeping their price and dish name after the catalogue changes
+- the cut-off moving back over a kitchen holiday, and never over a company's
+- kitchen start/done rules and roll-ups, late and at-risk units, and planned times following a delivery-time change
+- drops, step order, driver rules, and on-time vs late deliveries
+- every invoice reconciling with its orders and credits, credits when invoiced orders are cancelled or rejected, and a cancel racing an invoice
+- the admin dashboard agreeing with the order list and the billing page
+
+**The live checks clean up after themselves.** Everything they create is marked as test data ("Fernleaf QA ..." companies on `fernleaf-qa.in`, and "QA" catalogue items, tiers and staff). Before and after each live run, `e2e/qa-cleanup.ts` deletes exactly those rows in one transaction, so reviewers only ever see the demo data. That needs the database URL (`QA_DATABASE_URL`), and a live run refuses to start without it. It's a test harness talking to the database, not a feature of the app: the app itself never hard-deletes orders or dishes.
+
+A local **pre-commit hook** runs lint, type-check, unit tests and Playwright, and blocks the commit if anything fails. Every commit after the first few setup commits went through it. The same Playwright suite runs against the live site with `BASE_URL=...`; local tests that would change data skip themselves there, and the two live-only files run instead.
 
 ---
 
@@ -389,8 +401,6 @@ The spec asks for realistic data, including orders for whatever day the review h
 - **Every demo order goes through the real rules:** the employee's own menu and the same `buildLines()` the API uses. Demo orders are always priced on the right tier and respect hidden items and required choices.
 - **Weekends:** the demo kitchen works seven days, Orbit Health (a hospital) orders every day and Bluepeak Monday to Saturday, so a weekend review still has deliveries.
 - **History stays realistic:** with no one working the boards over the two-week review, unfinished orders from past days are marked delivered overnight. This is a demo convenience, not something the real product would do, which is why it only runs in demo mode.
-
-You'll also see a company called **"Fernleaf QA (test client)"**. That's where the automated production checks place their orders, so they never touch the demo companies.
 
 Things in the demo data worth looking at:
 - the Startup tier, which is missing prices on 6 dishes and has no price for Chicken tikka, so Nimbus Labs sees a smaller menu
