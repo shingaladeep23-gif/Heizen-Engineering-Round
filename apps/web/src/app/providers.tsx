@@ -30,7 +30,9 @@ export function Providers({ children }: { children: ReactNode }) {
   );
   return (
     <MantineProvider>
-      <Notifications />
+      {/* Top centre: bottom right is where many action buttons are, and a
+          toast there would cover the very button you need after an error. */}
+      <Notifications position="top-center" />
       <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
     </MantineProvider>
   );

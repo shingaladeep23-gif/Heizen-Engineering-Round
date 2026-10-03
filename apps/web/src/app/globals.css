@@ -1,0 +1,8 @@
+/* On a phone, a wide table scrolls sideways in its own box instead of
+   pushing the whole page wider than the screen. */
+@media (max-width: 48em) {
+  main table {
+    display: block;
+    overflow-x: auto;
+  }
+}

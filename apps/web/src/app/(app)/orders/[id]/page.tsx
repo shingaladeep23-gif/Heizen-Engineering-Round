@@ -106,7 +106,12 @@ export default function OrderPage() {
   const canBill = useCan('billing.manage');
   const [creditAmount, setCreditAmount] = useState<number | null>(null);
   const [reason, setReason] = useState('');
-  const close = () => setDialog(null);
+  // Each dialog starts empty, so a reason typed for one never turns up in another.
+  const close = () => {
+    setDialog(null);
+    setReason('');
+    setCreditAmount(null);
+  };
   const done = { invalidate: ['order', 'orders'], onSuccess: close };
 
   const place = useAction(
@@ -320,7 +325,7 @@ export default function OrderPage() {
         <Stack>
           <Text size="sm">
             {o.invoice
-              ? 'This order is already invoiced, so a credit for the full amount will go on the company’s next invoice.'
+              ? 'This order is already invoiced, so a credit for what’s left on it (its total, less any earlier credits) will go on the company’s next invoice.'
               : 'The company won’t be billed for it.'}
           </Text>
           <Button color="red" loading={cancel.isPending} onClick={() => cancel.mutate(undefined)}>

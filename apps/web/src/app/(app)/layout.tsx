@@ -1,7 +1,17 @@
 'use client';
 
 import { can, type Permission } from '@fernleaf/shared';
-import { AppShell, Burger, Button, Center, Group, Loader, NavLink, Text } from '@mantine/core';
+import {
+  Alert,
+  AppShell,
+  Burger,
+  Button,
+  Center,
+  Group,
+  Loader,
+  NavLink,
+  Text,
+} from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
@@ -27,6 +37,18 @@ const NAV: { href: string; label: string; permission?: Permission }[] = [
   { href: '/lists', label: 'Reference lists', permission: 'catalogue.view' },
   { href: '/staff', label: 'Staff', permission: 'staff.manage' },
   { href: '/settings', label: 'Settings', permission: 'settings.manage' },
+];
+
+// What each page needs. Pages that need more than their menu entry come
+// first; the rest are the menu entries themselves (a page and its sub-pages).
+const PAGES: [RegExp, Permission][] = [
+  [/^\/orders\/(new|\d+\/edit)$/, 'orders.manage'],
+  [/^\/companies\/new$/, 'companies.manage'],
+  [/^\/dishes\/new$/, 'catalogue.manage'],
+  [/^\/invoices\//, 'billing.view'],
+  ...NAV.flatMap(({ href, permission }): [RegExp, Permission][] =>
+    permission ? [[new RegExp(`^${href}(/|$)`), permission]] : [],
+  ),
 ];
 
 export default function SignedInLayout({ children }: { children: ReactNode }) {
@@ -110,7 +132,18 @@ export default function SignedInLayout({ children }: { children: ReactNode }) {
         )}
       </AppShell.Navbar>
 
-      <AppShell.Main>{children}</AppShell.Main>
+      <AppShell.Main>
+        {/* Saves loading a page only to show its errors. The API still checks everything. */}
+        {PAGES.some(
+          ([page, permission]) => page.test(pathname) && !can(me.data.role, permission),
+        ) ? (
+          <Alert color="red" title="No access">
+            You don&apos;t have access to this page.
+          </Alert>
+        ) : (
+          children
+        )}
+      </AppShell.Main>
     </AppShell>
   );
 }

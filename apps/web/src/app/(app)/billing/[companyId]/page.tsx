@@ -156,6 +156,7 @@ export default function CompanyBillingPage() {
                         <Button
                           size="compact-xs"
                           variant="light"
+                          loading={markPaid.isPending && markPaid.variables === inv.id}
                           onClick={() => markPaid.mutate(inv.id)}
                         >
                           Mark paid
