@@ -115,6 +115,10 @@ export class KitchenService {
       const order = await this.lockConfirmed(tx, orderId);
       const now = new Date();
       const units = await tx.orderCombo.findMany({ where: { line: { orderId }, doneAt: null } });
+      // Nothing left to finish: refuse, so "kitchen ready" keeps its real time.
+      if (units.length === 0) {
+        throw new ConflictException({ message: 'Every unit of this order is already done' });
+      }
       for (const unit of units) {
         await tx.orderCombo.update({
           where: { id: unit.id },

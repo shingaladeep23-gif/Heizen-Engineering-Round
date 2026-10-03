@@ -259,8 +259,7 @@ export class OrdersService {
         message: `A ${order.status.toLowerCase()} order can't be cancelled`,
       });
     }
-    await this.moveStatus(order, 'CANCELLED', { cancelledAt: new Date() });
-    await this.creditIfInvoiced(order, 'Cancelled after invoicing');
+    await this.close(order, 'CANCELLED', { cancelledAt: new Date() }, 'Cancelled after invoicing');
   }
 
   // Admins reject an order the kitchen can't fulfil, before cooking starts (D8).
@@ -271,46 +270,47 @@ export class OrdersService {
         message: 'Only placed or confirmed orders the kitchen hasn’t started can be rejected',
       });
     }
-    await this.moveStatus(order, 'REJECTED', { rejectedAt: new Date(), rejectReason: reason });
-    await this.creditIfInvoiced(order, `Rejected after invoicing: ${reason}`);
+    await this.close(
+      order,
+      'REJECTED',
+      { rejectedAt: new Date(), rejectReason: reason },
+      `Rejected after invoicing: ${reason}`,
+    );
   }
 
   /**
-   * Compare-and-set: only moves the order if it's still in the status we read.
-   * If someone else changed it in the meantime, nothing happens and we say so.
+   * Cancels or rejects an order. The row is locked first, so if someone else
+   * changed its status since we read it, we stop and say so. If it was put on
+   * an invoice in the meantime, the credit below still sees that, because it
+   * reads the locked row, not what we read earlier.
    */
-  private async moveStatus(
+  private async close(
     order: { id: number; status: OrderStatus },
-    to: OrderStatus,
-    data: Prisma.OrderUpdateManyMutationInput,
+    to: 'CANCELLED' | 'REJECTED',
+    data: Prisma.OrderUpdateInput,
+    creditReason: string,
   ) {
-    const { count } = await this.db.order.updateMany({
-      where: {
-        id: order.id,
-        status: order.status,
-        kitchenStartedAt: to === 'REJECTED' ? null : undefined,
-      },
-      data: { ...data, status: to },
-    });
-    if (count === 0) {
-      throw new ConflictException({
-        message: 'Someone else just changed this order. Refresh and try again.',
-      });
-    }
-  }
+    await this.db.$transaction(async (tx) => {
+      const current = await this.lock(tx, order.id);
+      if (current.status !== order.status || (to === 'REJECTED' && current.kitchenStartedAt)) {
+        throw new ConflictException({
+          message: 'Someone else just changed this order. Refresh and try again.',
+        });
+      }
+      await tx.order.update({ where: { id: order.id }, data: { ...data, status: to } });
 
-  // D7: an invoice never changes, so money taken back after invoicing becomes
-  // a credit that lands on the company's next invoice. Only what's left after
-  // any earlier credits (e.g. a short delivery) is credited.
-  private async creditIfInvoiced(
-    order: { id: number; invoiceId: number | null; total: number },
-    reason: string,
-  ) {
-    if (!order.invoiceId) return;
-    const earlier = await this.db.adjustment.findMany({ where: { orderId: order.id } });
-    const left = creditLeft(order.total, earlier);
-    if (left > 0)
-      await this.db.adjustment.create({ data: { orderId: order.id, amount: -left, reason } });
+      // D7: an invoice never changes, so money taken back after invoicing
+      // becomes a credit on the company's next invoice. Only what's left
+      // after any earlier credits (e.g. a short delivery) is credited.
+      if (!current.invoiceId) return;
+      const earlier = await tx.adjustment.findMany({ where: { orderId: order.id } });
+      const left = creditLeft(current.total, earlier);
+      if (left > 0) {
+        await tx.adjustment.create({
+          data: { orderId: order.id, amount: -left, reason: creditReason },
+        });
+      }
+    });
   }
 
   /** Admin override of delivery details after confirmation (spec 4.6). */

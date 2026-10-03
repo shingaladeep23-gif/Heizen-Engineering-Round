@@ -4,12 +4,13 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import type {
-  BillingCompany,
-  CompanyBilling,
-  CreditInput,
-  InvoiceDetail,
-  UnbilledOrder,
+import {
+  formatMoney,
+  type BillingCompany,
+  type CompanyBilling,
+  type CreditInput,
+  type InvoiceDetail,
+  type UnbilledOrder,
 } from '@fernleaf/shared';
 import type { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma.service.js';
@@ -151,8 +152,10 @@ export class BillingService {
       const invoice = await tx.invoice.create({
         data: { companyId, total: invoiceTotal(orders, credits) },
       });
+      // Re-checked here, not just above: an order cancelled while we were
+      // reading must not end up on the invoice.
       const claimed = await tx.order.updateMany({
-        where: { id: { in: orderIds }, invoiceId: null },
+        where: { id: { in: orderIds }, invoiceId: null, status: { in: [...BILLABLE] } },
         data: { invoiceId: invoice.id },
       });
       const claimedCredits = await tx.adjustment.updateMany({
@@ -231,7 +234,7 @@ export class BillingService {
       const left = creditLeft(order.total, order.adjustments);
       if (amount > left) {
         throw new BadRequestException({
-          message: `At most ${left / 100} can still be credited on this order`,
+          message: `At most ${formatMoney(left)} can still be credited on this order`,
           fieldErrors: { amount: 'More than what is left on this order' },
         });
       }

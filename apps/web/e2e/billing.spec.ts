@@ -91,6 +91,35 @@ test.describe('billing', () => {
     expect(detail.total).toBe(sum);
   });
 
+  test('cancelling and invoicing at the same moment never loses the credit', async ({
+    request,
+  }) => {
+    await apiSignIn(request, 'admin@test.com');
+    // A few rounds, since which one wins depends on timing.
+    for (let round = 0; round < 5; round++) {
+      const order = await confirmedNimbusOrder(request);
+      const [cancel, invoice] = await Promise.all([
+        request.post(`/api/orders/${order.id}/cancel`),
+        request.post('/api/billing/invoices', {
+          data: { companyId: NIMBUS, orderIds: [order.id] },
+        }),
+      ]);
+      expect(cancel.ok(), await cancel.text()).toBe(true);
+      expect([201, 409]).toContain(invoice.status());
+
+      const detail = await (await request.get(`/api/orders/${order.id}`)).json();
+      expect(detail.status).toBe('CANCELLED');
+      const credited = detail.adjustments.reduce(
+        (sum: number, a: { amount: number }) => sum + a.amount,
+        0,
+      );
+      // Invoiced first: the whole order is credited back. Cancelled first:
+      // it never made it onto the invoice, so there's nothing to credit.
+      if (invoice.status() === 201) expect(credited).toBe(-detail.total);
+      else expect(credited).toBe(0);
+    }
+  });
+
   test('a short delivery is credited, but never for more than the order cost', async ({
     page,
     request,
@@ -101,6 +130,7 @@ test.describe('billing', () => {
       data: { amount: 99_999_999, reason: 'Way too much' },
     });
     expect(over.status()).toBe(400);
+    expect((await over.json()).message).toMatch(/^At most ₹[\d,]+\.\d\d can still be credited/);
 
     await signIn(page, 'admin@test.com');
     await page.goto(`/orders/${order.id}`);
