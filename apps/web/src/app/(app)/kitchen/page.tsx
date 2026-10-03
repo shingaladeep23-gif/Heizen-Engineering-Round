@@ -4,7 +4,6 @@ import type { KitchenBoard, KitchenUnit, UnitState } from '@fernleaf/shared';
 import {
   Badge,
   Button,
-  Card,
   Group,
   SegmentedControl,
   SimpleGrid,
@@ -17,6 +16,7 @@ import {
 import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useState } from 'react';
+import { Stat } from '@/components/Stat';
 import { api, useAction, useCan } from '@/lib/api';
 import { formatDay, formatTime } from '@/lib/format';
 
@@ -30,19 +30,6 @@ const STATE: Record<UnitState, { label: string; color: string; row?: string }> =
   done: { label: 'Done', color: 'green' },
   waiting: { label: 'Not confirmed yet', color: 'gray' },
 };
-
-function Stat({ label, value, color }: { label: string; value: number; color?: string }) {
-  return (
-    <Card withBorder padding="sm">
-      <Text size="xs" c="dimmed">
-        {label}
-      </Text>
-      <Text fw={700} size="xl" c={value ? color : undefined}>
-        {value}
-      </Text>
-    </Card>
-  );
-}
 
 function UnitRow({ unit, date }: { unit: KitchenUnit; date: string }) {
   const canWork = useCan('kitchen.work');

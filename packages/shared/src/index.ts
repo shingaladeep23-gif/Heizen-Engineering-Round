@@ -1,6 +1,7 @@
 export * from './billing.js';
 export * from './catalogue.js';
 export * from './companies.js';
+export * from './dashboard.js';
 export * from './dispatch.js';
 export * from './kitchen.js';
 export * from './menu.js';

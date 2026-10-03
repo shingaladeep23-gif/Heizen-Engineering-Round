@@ -10,6 +10,8 @@ import { CompaniesController } from './companies/companies.controller.js';
 import { CompaniesService } from './companies/companies.service.js';
 import { DispatchController } from './dispatch/dispatch.controller.js';
 import { DispatchService } from './dispatch/dispatch.service.js';
+import { DashboardController } from './dashboard/dashboard.controller.js';
+import { DashboardService } from './dashboard/dashboard.service.js';
 import { DemoDataService } from './demo-data/demo-data.service.js';
 import { KitchenController } from './kitchen/kitchen.controller.js';
 import { KitchenService } from './kitchen/kitchen.service.js';
@@ -37,6 +39,7 @@ import { StaffController } from './staff/staff.controller.js';
     DispatchController,
     BillingController,
     SettingsController,
+    DashboardController,
   ],
   providers: [
     DemoDataService,
@@ -46,6 +49,7 @@ import { StaffController } from './staff/staff.controller.js';
     DispatchService,
     BillingService,
     CompaniesService,
+    DashboardService,
     { provide: APP_FILTER, useClass: PrismaErrorFilter },
   ],
 })
