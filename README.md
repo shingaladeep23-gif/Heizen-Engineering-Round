@@ -359,6 +359,19 @@ The spec asked for tests on the rules most likely to break. Those are the pure-f
 - billing with credits
 - companies, employees and settings
 
+**A production journey** (`e2e/production.spec.ts`, **18 tests**) runs only against the live site and walks the whole business in order:
+- the catalogue screens and the menu preview
+- placing an order through the form with two combinations
+- draft → place → edit → cancel
+- reject, and a delivery override
+- the kitchen cooking it unit by unit, then dispatch sending it out
+- the driver delivering it on a phone with a note and a photo
+- invoicing it, checking the stored total, and marking it paid
+- double invoicing refused, a short-delivery credit, a credit-only invoice, and cancelling an invoiced order
+- simultaneous cancels, search and filters, the cut-off run, every dashboard, the company and settings screens, and the permission matrix
+
+It only creates data for one internal company, **"Fernleaf QA (test client)"**, so the demo companies stay as they are. Running it found two real problems that local tests couldn't: transactions timing out on the hosted database, and pages showing nothing when a request failed. Both are fixed.
+
 A local **pre-commit hook** runs lint, type-check, unit tests and Playwright, and blocks the commit if anything fails. Every commit after the first few setup commits went through it. The same Playwright suite runs against the live site with `BASE_URL=...`; tests that would change data skip themselves there.
 
 ---
@@ -375,6 +388,8 @@ The spec asks for realistic data, including orders for whatever day the review h
 - **Every demo order goes through the real rules:** the employee's own menu and the same `buildLines()` the API uses. Demo orders are always priced on the right tier and respect hidden items and required choices.
 - **Weekends:** the demo kitchen works seven days, Orbit Health (a hospital) orders every day and Bluepeak Monday to Saturday, so a weekend review still has deliveries.
 - **History stays realistic:** with no one working the boards over the two-week review, unfinished orders from past days are marked delivered overnight. This is a demo convenience, not something the real product would do, which is why it only runs in demo mode.
+
+You'll also see a company called **"Fernleaf QA (test client)"**. That's where the automated production checks place their orders, so they never touch the demo companies.
 
 Things in the demo data worth looking at:
 - the Startup tier, which is missing prices on 6 dishes and has no price for Chicken tikka, so Nimbus Labs sees a smaller menu
