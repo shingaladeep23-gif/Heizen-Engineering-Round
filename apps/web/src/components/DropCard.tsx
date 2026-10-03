@@ -5,7 +5,7 @@ import { Badge, Card, Group, Stack, Text } from '@mantine/core';
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { useCan } from '@/lib/api';
-import { formatTime } from '@/lib/format';
+import { formatClock, formatTime } from '@/lib/format';
 
 export const STAGES: Record<DropStage, { label: string; color: string }> = {
   cooking: { label: 'In the kitchen', color: 'gray' },
@@ -26,7 +26,7 @@ export function DropCard({ drop, children }: { drop: Drop; children?: ReactNode 
       <Group justify="space-between" align="flex-start" wrap="nowrap">
         <div>
           <Text fw={700} size="lg">
-            {drop.ref.time} · {drop.company.name}
+            {formatClock(drop.ref.time)} · {drop.company.name}
           </Text>
           <Text size="sm">{drop.address.label}</Text>
           <Text size="xs" c="dimmed">

@@ -1,7 +1,17 @@
 'use client';
 
 import type { Drop } from '@fernleaf/shared';
-import { Button, FileInput, Modal, Stack, Text, Textarea, Title } from '@mantine/core';
+import {
+  Button,
+  CloseButton,
+  FileButton,
+  Group,
+  Modal,
+  Stack,
+  Text,
+  Textarea,
+  Title,
+} from '@mantine/core';
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { DropCard } from '@/components/DropCard';
@@ -29,15 +39,37 @@ function DeliverDialog({ drop, onClose }: { drop: Drop; onClose: () => void }) {
         value={note}
         onChange={(e) => setNote(e.currentTarget.value)}
       />
-      <FileInput
-        label="Photo (optional)"
-        placeholder="Take or choose a photo"
-        accept="image/*"
-        capture="environment"
-        clearable
-        value={photo}
-        onChange={setPhoto}
-      />
+      {/* Two buttons, because phones handle "camera or gallery" differently:
+          one asks for the camera, the other opens the gallery or files. */}
+      <Stack gap={6}>
+        <Text size="sm" fw={500}>
+          Photo (optional)
+        </Text>
+        <Group grow>
+          <FileButton onChange={setPhoto} accept="image/*" capture="environment">
+            {(props) => (
+              <Button variant="light" {...props}>
+                Take a photo
+              </Button>
+            )}
+          </FileButton>
+          <FileButton onChange={setPhoto} accept="image/*">
+            {(props) => (
+              <Button variant="default" {...props}>
+                Choose a photo
+              </Button>
+            )}
+          </FileButton>
+        </Group>
+        {photo && (
+          <Group justify="space-between" wrap="nowrap">
+            <Text size="sm" truncate>
+              📷 {photo.name}
+            </Text>
+            <CloseButton aria-label="Remove photo" onClick={() => setPhoto(null)} />
+          </Group>
+        )}
+      </Stack>
       <Button size="lg" loading={deliver.isPending} onClick={() => deliver.mutate(undefined)}>
         Confirm delivered
       </Button>

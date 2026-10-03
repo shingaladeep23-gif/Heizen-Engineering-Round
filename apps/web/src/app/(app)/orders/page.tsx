@@ -22,7 +22,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { api, useAction, useCan } from '@/lib/api';
-import { formatDay, formatDateTime, STATUS_COLORS, statusLabel } from '@/lib/format';
+import { formatClock, formatDay, formatDateTime, STATUS_COLORS, statusLabel } from '@/lib/format';
 
 type Range = [string | null, string | null];
 
@@ -190,7 +190,7 @@ export default function OrdersPage() {
             >
               <Table.Td>#{order.id}</Table.Td>
               <Table.Td>
-                {formatDay(order.deliveryDate)}, {order.deliveryTime}
+                {formatDay(order.deliveryDate)}, {formatClock(order.deliveryTime)}
               </Table.Td>
               <Table.Td>{order.employee.name}</Table.Td>
               <Table.Td>{order.company.name}</Table.Td>

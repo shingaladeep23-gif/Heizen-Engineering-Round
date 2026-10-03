@@ -18,7 +18,7 @@ import Link from 'next/link';
 import { useState } from 'react';
 import { Stat } from '@/components/Stat';
 import { api, useAction, useCan } from '@/lib/api';
-import { formatDay, formatTime, todayIST } from '@/lib/format';
+import { formatClock, formatDay, formatTime, todayIST } from '@/lib/format';
 
 const STATE: Record<UnitState, { label: string; color: string; row?: string }> = {
   late: { label: 'Late', color: 'red', row: 'var(--mantine-color-red-0)' },
@@ -57,7 +57,7 @@ function UnitRow({ unit, date }: { unit: KitchenUnit; date: string }) {
           {unit.company}
         </Text>
         <Text size="xs" c="dimmed">
-          Delivery {unit.deliveryTime}
+          Delivery {formatClock(unit.deliveryTime)}
         </Text>
       </Table.Td>
       <Table.Td>
@@ -147,7 +147,7 @@ export default function KitchenPage() {
         <Table>
           <Table.Thead>
             <Table.Tr>
-              <Table.Th>Ready by</Table.Th>
+              <Table.Th>Cook by</Table.Th>
               <Table.Th>What</Table.Th>
               <Table.Th>Order</Table.Th>
               <Table.Th>Status</Table.Th>

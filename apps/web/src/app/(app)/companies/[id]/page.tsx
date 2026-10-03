@@ -1,11 +1,12 @@
 'use client';
 
-import type {
-  CompanyDetail,
-  CompanyInput,
-  CompanyRow,
-  EmployeeInput,
-  Tier,
+import {
+  companySchema,
+  type CompanyDetail,
+  type CompanyInput,
+  type CompanyRow,
+  type EmployeeInput,
+  type Tier,
 } from '@fernleaf/shared';
 import {
   ActionIcon,
@@ -220,6 +221,17 @@ function CompanyForm({
                   description="Press Enter after each. Public ones like gmail.com aren't allowed."
                   placeholder="acme.in"
                   {...form.getInputProps('domains')}
+                  onChange={(domains) => {
+                    form.setFieldValue('domains', domains);
+                    // Say it as soon as a domain is added, with the same rule the
+                    // server applies on save. (Domains other companies own can
+                    // only be checked by the server.)
+                    const check = companySchema.shape.domains.safeParse(domains);
+                    form.setFieldError(
+                      'domains',
+                      check.success ? null : check.error.issues[0].message,
+                    );
+                  }}
                 />
                 <TextInput label="Billing name" {...form.getInputProps('billingName')} />
                 <TextInput label="Billing email" {...form.getInputProps('billingEmail')} />

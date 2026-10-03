@@ -215,7 +215,7 @@ test.describe('production journey', () => {
     await page.getByRole('button', { name: 'Change delivery' }).click();
     await page.getByLabel('Delivery time').fill('13:45');
     await page.getByRole('button', { name: 'Save delivery details' }).click();
-    await expect(page.getByText(/, 13:45$/)).toBeVisible();
+    await expect(page.getByText(/, 1:45 pm$/)).toBeVisible();
     // The plan moves with it: leaves at 12:45, cooked by 12:15.
     await expect(page.getByText('12:15 pm')).toBeVisible();
   });
@@ -277,7 +277,7 @@ test.describe('production journey', () => {
     const drop = page.locator(`[data-drop="${QA_COMPANY} ${made.todayTime}"]`);
     await drop.getByRole('button', { name: 'Mark delivered' }).click();
     await page.getByLabel('Note (optional)').fill('Automated check: left at the QA desk');
-    await page.locator('input[type="file"]').setInputFiles({
+    await page.locator('input[type="file"]:not([capture])').setInputFiles({
       name: 'proof.png',
       mimeType: 'image/png',
       buffer: PHOTO,

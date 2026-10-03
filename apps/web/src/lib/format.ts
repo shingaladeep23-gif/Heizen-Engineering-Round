@@ -24,6 +24,8 @@ const dayFmt = new Intl.DateTimeFormat('en-IN', {
 });
 
 export const formatTime = (iso: string) => timeFmt.format(new Date(iso));
+// A delivery time stored as "HH:mm" (IST), shown like every other time: "3:30 am".
+export const formatClock = (hhmm: string) => formatTime(`2000-01-01T${hhmm}:00+05:30`);
 export const formatDateTime = (iso: string) => dateTimeFmt.format(new Date(iso));
 export const formatDay = (day: string) => dayFmt.format(new Date(day));
 

@@ -148,7 +148,7 @@ test.describe('changing orders', () => {
     await page.getByRole('button', { name: 'Change delivery' }).click();
     await page.getByLabel('Delivery time').fill('13:45');
     await page.getByRole('button', { name: 'Save delivery details' }).click();
-    await expect(page.getByText(/, 13:45$/)).toBeVisible();
+    await expect(page.getByText(/, 1:45 pm$/)).toBeVisible();
     // The plan follows: leaves the kitchen 60 min before, cooked 30 min before that.
     await expect(page.getByText('12:15 pm')).toBeVisible();
   });

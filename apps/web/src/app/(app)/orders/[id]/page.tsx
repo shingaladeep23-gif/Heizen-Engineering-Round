@@ -26,7 +26,14 @@ import { MoneyInput } from '@/components/MoneyInput';
 import { valuesFromOrder } from '@/components/OrderForm';
 import { Waiting } from '@/components/Waiting';
 import { api, useAction, useCan, useLists } from '@/lib/api';
-import { formatDateTime, formatDay, formatTime, STATUS_COLORS, statusLabel } from '@/lib/format';
+import {
+  formatClock,
+  formatDateTime,
+  formatDay,
+  formatTime,
+  STATUS_COLORS,
+  statusLabel,
+} from '@/lib/format';
 
 const Field = ({ label, children }: { label: string; children: ReactNode }) => (
   <div>
@@ -212,7 +219,7 @@ export default function OrderPage() {
         <Card withBorder>
           <Stack gap="xs">
             <Field label="Delivery">
-              {formatDay(o.deliveryDate)}, {o.deliveryTime}
+              {formatDay(o.deliveryDate)}, {formatClock(o.deliveryTime)}
             </Field>
             <Field label="Address">
               {o.address.label}, {o.address.text}

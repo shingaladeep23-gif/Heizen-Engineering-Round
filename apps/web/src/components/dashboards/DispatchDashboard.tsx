@@ -8,7 +8,7 @@ import { STAGES } from '@/components/DropCard';
 import { Stat } from '@/components/Stat';
 import { Waiting } from '@/components/Waiting';
 import { api } from '@/lib/api';
-import { formatTime, todayIST } from '@/lib/format';
+import { formatClock, formatTime, todayIST } from '@/lib/format';
 
 // What a dispatcher needs: what's leaving next, what's slipping, and who's
 // driving what. Built from the dispatch board's own data.
@@ -57,7 +57,7 @@ export function DispatchDashboard() {
           <Text fw={600}>Drops without a driver: {noDriver.length}</Text>
           {noDriver.map((d) => (
             <Text key={`${d.company.id}-${d.ref.time}-${d.address.id}`} size="sm">
-              {d.ref.time} {d.company.name}, {d.address.label}
+              {formatClock(d.ref.time)} {d.company.name}, {d.address.label}
             </Text>
           ))}
         </Card>

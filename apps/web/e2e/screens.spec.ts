@@ -580,8 +580,7 @@ test.describe('every screen, every role', () => {
     ]) {
       await domains.fill(domain);
       await domains.press('Enter');
-      await save.click();
-      await fieldError(page, message);
+      await fieldError(page, message); // straight away, before saving
       await page.locator('.mantine-Pill-remove').first().click(); // remove the tag
     }
     await domains.fill('acmeanalytics.in'); // Acme's
@@ -877,7 +876,7 @@ test.describe('every screen, every role', () => {
     await expect(page).toHaveURL(/\/orders\/\d+$/);
     s.confirmed = Number(page.url().split('/').pop());
     await expect(page.getByText('Confirmed', { exact: true }).first()).toBeVisible();
-    await expect(page.locator('main')).toContainText('13:40');
+    await expect(page.locator('main')).toContainText('1:40 pm');
     await expect(page.locator('main')).toContainText('Tower A, 1 Test Road');
     await expect(page.locator('main')).toContainText('Eco bagasse box');
     await expect(page.locator('main')).toContainText('Dev Driver');
@@ -1092,8 +1091,11 @@ test.describe('every screen, every role', () => {
     // No links into screens a driver can't open.
     await expect(drop.getByRole('link', { name: `#${mine.orderId}` })).toHaveCount(0);
     await drop.getByRole('button', { name: 'Mark delivered' }).click();
+    // Camera or gallery, both offered, since phones handle it differently.
+    await expect(page.getByRole('button', { name: 'Take a photo' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Choose a photo' })).toBeVisible();
     await page.getByLabel('Note (optional)').fill('Ui: left with security');
-    await page.locator('input[type="file"]').setInputFiles({
+    await page.locator('input[type="file"]:not([capture])').setInputFiles({
       name: 'proof.png',
       mimeType: 'image/png',
       buffer: Buffer.from(
@@ -1101,6 +1103,7 @@ test.describe('every screen, every role', () => {
         'base64',
       ),
     });
+    await expect(page.getByText('📷 proof.png')).toBeVisible();
     await page.getByRole('button', { name: 'Confirm delivered' }).click();
     await toast(page, 'Marked delivered');
     await expect(drop.getByText('Delivered', { exact: true })).toBeVisible();
@@ -1332,7 +1335,10 @@ test.describe('every screen, every role', () => {
     await page.getByRole('button', { name: 'Save' }).click();
     await fieldError(page, `${TOFU} doesn't come in ${LARGE}`);
     // Take tofu out of the group, and it saves.
-    await page.locator('.mantine-Pill-root', { hasText: TOFU }).locator('.mantine-Pill-remove').click();
+    await page
+      .locator('.mantine-Pill-root', { hasText: TOFU })
+      .locator('.mantine-Pill-remove')
+      .click();
     await page.getByRole('button', { name: 'Save' }).click();
     await toast(page, 'Dish saved');
     await expect(page).toHaveURL(/\/dishes\/\d+$/);

@@ -7,7 +7,7 @@ import Link from 'next/link';
 import { Stat } from '@/components/Stat';
 import { Waiting } from '@/components/Waiting';
 import { api } from '@/lib/api';
-import { formatDay, formatTime, todayIST } from '@/lib/format';
+import { formatClock, formatDay, formatTime, todayIST } from '@/lib/format';
 
 const portions = (units: KitchenUnit[]) => units.reduce((s, u) => s + u.quantity, 0);
 
@@ -123,8 +123,9 @@ export function KitchenDashboard() {
         </Title>
         {nextUp.map((u) => (
           <Text key={u.id} size="sm">
-            {formatTime(u.kitchenReadyBy)}: {u.quantity} × {u.dishName}
-            {u.choices && ` (${u.choices})`} for {u.company}
+            Cook by {formatTime(u.kitchenReadyBy)}: {u.quantity} × {u.dishName}
+            {u.choices && ` (${u.choices})`} for {u.company} (delivery {formatClock(u.deliveryTime)}
+            )
           </Text>
         ))}
         {nextUp.length === 0 && <Text c="dimmed">All done for today.</Text>}
