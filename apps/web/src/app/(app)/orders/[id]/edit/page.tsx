@@ -7,6 +7,7 @@ import { useParams } from 'next/navigation';
 import { OrderForm, valuesFromOrder } from '@/components/OrderForm';
 import { Waiting } from '@/components/Waiting';
 import { api } from '@/lib/api';
+import { BackLink } from '@/components/BackLink';
 
 export default function EditOrderPage() {
   const { id } = useParams<{ id: string }>();
@@ -17,6 +18,7 @@ export default function EditOrderPage() {
   if (!order.data) return <Waiting error={order.error} />;
   return (
     <>
+      <BackLink href={`/orders/${id}`}>Back to order #{id}</BackLink>
       <Title order={2} mb="md">
         Edit order #{id}
       </Title>

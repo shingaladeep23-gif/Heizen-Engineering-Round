@@ -137,6 +137,10 @@ export default function KitchenPage() {
         />
       </SimpleGrid>
 
+      <Text size="xs" c="dimmed">
+        Late: should be cooked by now. At risk: due soon. “Not confirmed yet” rows are placed
+        orders, shown so you can plan; they can be cooked once the cut-off confirms them.
+      </Text>
       <SegmentedControl data={stations} value={station} onChange={setStation} />
 
       {shown.length === 0 ? (

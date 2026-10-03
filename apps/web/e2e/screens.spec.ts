@@ -143,10 +143,10 @@ test.describe('every screen, every role', () => {
           'Dispatch',
           'Billing',
           'Companies',
+          'Menu preview',
           'Dishes',
           'Options',
           'Menu',
-          'Menu preview',
           'Price tiers',
           'Reference lists',
           'Staff',
@@ -176,6 +176,12 @@ test.describe('every screen, every role', () => {
       await signIn(page, email);
       await expect(page.getByRole('heading', { name: role.heading })).toBeVisible();
       await expect(page.locator('nav a')).toHaveText(role.nav);
+      // The header says which role you're signed in as; the tab names the page.
+      const roleName = email.split('@')[0];
+      await expect(page.locator('header')).toContainText(
+        `· ${roleName.charAt(0).toUpperCase()}${roleName.slice(1)}`,
+      );
+      await expect(page).toHaveTitle('Dashboard · Fernleaf Kitchen');
     }
   });
 

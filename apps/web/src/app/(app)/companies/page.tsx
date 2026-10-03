@@ -1,7 +1,7 @@
 'use client';
 
 import type { CompanyRow } from '@fernleaf/shared';
-import { Button, Group, Table, Title } from '@mantine/core';
+import { Button, Group, Table, Title, Text } from '@mantine/core';
 import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -18,7 +18,13 @@ export default function CompaniesPage() {
   return (
     <>
       <Group justify="space-between" mb="md">
-        <Title order={2}>Companies</Title>
+        <div>
+          <Title order={2}>Companies</Title>
+          <Text size="sm" c="dimmed">
+            The companies we deliver to. Open one for its employees, addresses, calendar, delivery
+            defaults and prices.
+          </Text>
+        </div>
         {canEdit && (
           <Button component={Link} href="/companies/new">
             New company

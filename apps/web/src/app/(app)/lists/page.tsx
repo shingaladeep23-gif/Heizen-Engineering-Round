@@ -89,9 +89,10 @@ function ListCard({ kind }: { kind: ListKind }) {
 export default function ListsPage() {
   return (
     <>
-      <Title order={2} mb="md">
-        Reference lists
-      </Title>
+      <Title order={2}>Reference lists</Title>
+      <Text size="sm" c="dimmed" mb="md">
+        The lists the rest of the catalogue picks from. Anything still in use can’t be removed.
+      </Text>
       <SimpleGrid cols={{ base: 1, md: 2 }}>
         {LIST_KINDS.map((kind) => (
           <ListCard key={kind} kind={kind} />

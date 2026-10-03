@@ -105,7 +105,13 @@ export default function PreviewPage() {
 
   return (
     <Stack>
-      <Title order={2}>Menu preview</Title>
+      <div>
+        <Title order={2}>Menu preview</Title>
+        <Text size="sm" c="dimmed">
+          The menu exactly as one employee sees it: their company’s tier, hidden items, and warnings
+          for their allergies.
+        </Text>
+      </div>
       <Text size="sm" c="dimmed">
         See the menu exactly as one employee would: their company&apos;s hidden items are gone,
         prices come from their company&apos;s tier, and anything without a price there isn&apos;t

@@ -38,6 +38,7 @@ import { Holidays, WorkingDays } from '@/components/CalendarInputs';
 import { EmployeeImport } from '@/components/EmployeeImport';
 import { Waiting } from '@/components/Waiting';
 import { api, useAction, useCan, useLists } from '@/lib/api';
+import { BackLink } from '@/components/BackLink';
 
 type Form = Required<CompanyInput>;
 type Employee = CompanyDetail['employees'][number];
@@ -201,6 +202,7 @@ function CompanyForm({
 
   return (
     <>
+      <BackLink href="/companies">All companies</BackLink>
       <form onSubmit={form.onSubmit((values) => save.mutate(values))}>
         <fieldset disabled={!canEdit} style={{ border: 0, padding: 0, margin: 0 }}>
           <Stack>

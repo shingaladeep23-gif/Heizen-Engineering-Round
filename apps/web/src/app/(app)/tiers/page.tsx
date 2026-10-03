@@ -175,7 +175,13 @@ export default function TiersPage() {
   return (
     <>
       <Group justify="space-between" mb="md">
-        <Title order={2}>Price tiers</Title>
+        <div>
+          <Title order={2}>Price tiers</Title>
+          <Text size="sm" c="dimmed">
+            Each company pays its tier’s prices (or the default tier’s). Click a tier to see and
+            edit every price; red means that dish can’t be ordered on it.
+          </Text>
+        </div>
         {canEdit && <Button onClick={() => openTier()}>New tier</Button>}
       </Group>
 

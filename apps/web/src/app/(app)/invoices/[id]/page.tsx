@@ -8,6 +8,7 @@ import { useParams } from 'next/navigation';
 import { Waiting } from '@/components/Waiting';
 import { api } from '@/lib/api';
 import { formatDateTime, formatDay, statusLabel } from '@/lib/format';
+import { BackLink } from '@/components/BackLink';
 
 export default function InvoicePage() {
   const { id } = useParams<{ id: string }>();
@@ -21,6 +22,7 @@ export default function InvoicePage() {
 
   return (
     <Stack maw={800}>
+      <BackLink href={`/billing/${inv.company.id}`}>{inv.company.name} billing</BackLink>
       <Group justify="space-between">
         <Title order={2}>Invoice #{inv.id}</Title>
         <Badge size="lg" color={inv.paidAt ? 'green' : 'orange'} variant="light">

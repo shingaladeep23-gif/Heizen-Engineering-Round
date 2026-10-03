@@ -9,6 +9,7 @@ import { useState } from 'react';
 import { Waiting } from '@/components/Waiting';
 import { api, useAction, useCan } from '@/lib/api';
 import { formatDateTime, formatDay, statusLabel } from '@/lib/format';
+import { BackLink } from '@/components/BackLink';
 
 export default function CompanyBillingPage() {
   const { companyId } = useParams<{ companyId: string }>();
@@ -53,6 +54,7 @@ export default function CompanyBillingPage() {
 
   return (
     <Stack>
+      <BackLink href="/billing">All companies’ billing</BackLink>
       <div>
         <Title order={2}>{company.name}</Title>
         <Text size="sm" c="dimmed">

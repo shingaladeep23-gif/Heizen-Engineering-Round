@@ -101,9 +101,11 @@ export default function SettingsPage() {
   const settings = useQuery({ queryKey: ['settings'], queryFn: () => api<Settings>('/settings') });
   return (
     <>
-      <Title order={2} mb="md">
-        Settings
-      </Title>
+      <Title order={2}>Settings</Title>
+      <Text size="sm" c="dimmed" mb="md">
+        Platform-wide values: the kitchen’s own calendar, when orders lock, and the timings the
+        boards use.
+      </Text>
       {settings.data ? (
         <SettingsForm initial={settings.data} />
       ) : (

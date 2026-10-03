@@ -1,7 +1,7 @@
 'use client';
 
 import { formatMoney } from '@fernleaf/shared';
-import { Badge, Button, Group, Image, Table, Title } from '@mantine/core';
+import { Badge, Button, Group, Image, Table, Title, Text } from '@mantine/core';
 import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -26,7 +26,13 @@ export default function DishesPage() {
   return (
     <>
       <Group justify="space-between" mb="md">
-        <Title order={2}>Dishes</Title>
+        <div>
+          <Title order={2}>Dishes</Title>
+          <Text size="sm" c="dimmed">
+            Everything the kitchen makes. Deactivated dishes stay on old orders but can’t be
+            ordered.
+          </Text>
+        </div>
         {canEdit && (
           <Button component={Link} href="/dishes/new">
             New dish

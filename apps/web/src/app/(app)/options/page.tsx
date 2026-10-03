@@ -12,6 +12,7 @@ import {
   Table,
   TextInput,
   Title,
+  Text,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { useQuery } from '@tanstack/react-query';
@@ -73,7 +74,13 @@ export default function OptionsPage() {
   return (
     <>
       <Group justify="space-between" mb="md">
-        <Title order={2}>Options</Title>
+        <div>
+          <Title order={2}>Options</Title>
+          <Text size="sm" c="dimmed">
+            Choices that go with dishes, like rice, proteins and add-ons, each with its own cost,
+            allergens and sizes.
+          </Text>
+        </div>
         {canEdit && <Button onClick={() => open()}>New option</Button>}
       </Group>
 

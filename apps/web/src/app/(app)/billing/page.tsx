@@ -15,7 +15,12 @@ export default function BillingPage() {
 
   return (
     <Stack>
-      <Title order={2}>Billing</Title>
+      <div>
+        <Title order={2}>Billing</Title>
+        <Text size="sm" c="dimmed">
+          What each company owes. Open a company to put its confirmed orders on an invoice.
+        </Text>
+      </div>
       <Text size="sm" c="dimmed">
         Employees never pay: every confirmed order is billed to their company. Pick a company to
         invoice what isn&apos;t billed yet.

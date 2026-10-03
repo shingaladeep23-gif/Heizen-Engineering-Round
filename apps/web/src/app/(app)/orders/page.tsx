@@ -104,7 +104,12 @@ export default function OrdersPage() {
   return (
     <Stack>
       <Group justify="space-between">
-        <Title order={2}>Orders</Title>
+        <div>
+          <Title order={2}>Orders</Title>
+          <Text size="sm" c="dimmed">
+            Every order, latest delivery date first. Search or filter, then click a row to open it.
+          </Text>
+        </div>
         <Group>
           {canOverride && (
             <Button variant="light" onClick={() => setCutoffOpen(true)}>

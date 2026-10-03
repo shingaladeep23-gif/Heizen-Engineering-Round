@@ -27,6 +27,7 @@ import { useEffect } from 'react';
 import { MoneyInput } from '@/components/MoneyInput';
 import { Waiting } from '@/components/Waiting';
 import { api, useAction, useCan, useLists } from '@/lib/api';
+import { BackLink } from '@/components/BackLink';
 
 type Form = Required<Omit<DishInput, 'optionGroups'>> & {
   optionGroups: {
@@ -104,6 +105,7 @@ export default function DishPage() {
 
   return (
     <form onSubmit={form.onSubmit((values) => save.mutate(values))}>
+      <BackLink href="/dishes">All dishes</BackLink>
       <fieldset disabled={!canEdit} style={{ border: 0, padding: 0, margin: 0 }}>
         <Group justify="space-between" mb="md">
           <Title order={2}>{isNew ? 'New dish' : form.values.name}</Title>

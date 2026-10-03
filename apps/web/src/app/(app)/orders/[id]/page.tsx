@@ -34,6 +34,7 @@ import {
   STATUS_COLORS,
   statusLabel,
 } from '@/lib/format';
+import { BackLink } from '@/components/BackLink';
 
 const Field = ({ label, children }: { label: string; children: ReactNode }) => (
   <div>
@@ -151,6 +152,7 @@ export default function OrderPage() {
 
   return (
     <Stack>
+      <BackLink href="/orders">All orders</BackLink>
       <Group justify="space-between">
         <Group>
           <Title order={2}>Order #{o.id}</Title>
