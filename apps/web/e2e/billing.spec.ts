@@ -1,4 +1,5 @@
 import { expect, test, type APIRequestContext } from '@playwright/test';
+import { markDelivered } from './db';
 import { apiSignIn, createOrder, isLive, LOCAL_ONLY, lockedDate, signIn } from './helpers';
 
 // Billing tests use Nimbus Labs (employee 20, Nikhil Reddy), which no other
@@ -126,13 +127,23 @@ test.describe('billing', () => {
   }) => {
     await apiSignIn(request, 'admin@test.com');
     const order = await confirmedNimbusOrder(request);
+    // Not delivered yet: nothing can be short, so no credit.
+    const early = await request.post(`/api/billing/orders/${order.id}/credit`, {
+      data: { amount: 100, reason: 'Too early' },
+    });
+    expect(early.status()).toBe(409);
+    await signIn(page, 'admin@test.com');
+    await page.goto(`/orders/${order.id}`);
+    await expect(page.getByRole('button', { name: 'Cancel order' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Credit short delivery' })).toHaveCount(0);
+
+    await markDelivered(order.id);
     const over = await request.post(`/api/billing/orders/${order.id}/credit`, {
       data: { amount: 99_999_999, reason: 'Way too much' },
     });
     expect(over.status()).toBe(400);
     expect((await over.json()).message).toMatch(/^At most ₹[\d,]+\.\d\d can still be credited/);
 
-    await signIn(page, 'admin@test.com');
     await page.goto(`/orders/${order.id}`);
     await page.getByRole('button', { name: 'Credit short delivery' }).click();
     await page.getByLabel('Amount to credit').fill('50');

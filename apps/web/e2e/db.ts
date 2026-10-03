@@ -74,3 +74,20 @@ export async function todayOutForDelivery(driverEmail: string | null, employeeId
     date: todayIST(),
   };
 }
+
+/** Marks a confirmed order delivered, without walking it through the boards. */
+export async function markDelivered(orderId: number) {
+  const now = new Date();
+  await db.order.update({
+    where: { id: orderId },
+    data: {
+      status: 'DELIVERED',
+      kitchenStartedAt: now,
+      kitchenReadyAt: now,
+      dispatchReadyAt: now,
+      outForDeliveryAt: now,
+      deliveredAt: now,
+      deliveredOnTime: true,
+    },
+  });
+}

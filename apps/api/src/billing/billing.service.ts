@@ -15,7 +15,7 @@ import {
 import type { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma.service.js';
 import { dayOf } from '../orders/calendar.js';
-import { BILLABLE, creditLeft, invoiceTotal, isBillable } from './billing-rules.js';
+import { BILLABLE, creditLeft, invoiceTotal } from './billing-rules.js';
 
 const uninvoicedOrders = (companyId?: number): Prisma.OrderWhereInput => ({
   companyId,
@@ -217,7 +217,7 @@ export class BillingService {
     };
   }
 
-  /** A credit for a delivered order that turned out short (D7). */
+  /** A credit for a delivered order that turned out short (D7, D74). */
   async credit(orderId: number, { amount, reason }: CreditInput) {
     return this.db.$transaction(async (tx) => {
       await tx.$queryRaw`SELECT id FROM "Order" WHERE id = ${orderId} FOR UPDATE`;
@@ -226,9 +226,10 @@ export class BillingService {
         include: { adjustments: true },
       });
       if (!order) throw new NotFoundException({ message: 'Order not found' });
-      if (!isBillable(order.status)) {
+      // A shortage only shows up once the order has arrived (D74).
+      if (order.status !== 'DELIVERED') {
         throw new ConflictException({
-          message: 'Only confirmed or delivered orders can be credited',
+          message: 'Only delivered orders can be credited for a short delivery',
         });
       }
       const left = creditLeft(order.total, order.adjustments);

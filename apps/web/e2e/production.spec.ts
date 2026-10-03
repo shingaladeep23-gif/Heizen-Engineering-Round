@@ -338,21 +338,29 @@ test.describe('production journey', () => {
   test('a short delivery is credited, and a credit note is invoiced on its own', async ({
     page,
   }) => {
-    const shortOrder = await order({ deliveryDate: dayIST(1), deliveryTime: randomTime() });
+    // A confirmed order hasn't arrived, so it can't be short: no credit button.
+    const notYet = await order({ deliveryDate: dayIST(1), deliveryTime: randomTime() });
     await signIn(page, 'admin@test.com');
-    await page.goto(`/orders/${shortOrder.id}`);
+    await page.goto(`/orders/${notYet.id}`);
+    await expect(page.getByRole('button', { name: 'Cancel order' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Credit short delivery' })).toHaveCount(0);
+
+    // Today's order, delivered by the driver above (and already invoiced and paid).
+    await page.goto(`/orders/${made.today}`);
     await page.getByRole('button', { name: 'Credit short delivery' }).click();
     await page.getByLabel('Amount to credit').fill('50');
     await page.getByLabel('Reason').fill('Automated check: one box short');
     await page.getByRole('button', { name: 'Record credit' }).click();
     await expect(page.getByRole('row', { name: /one box short/ })).toContainText('-₹50.00');
 
-    // Invoice just the credit (untick the order itself).
+    // Invoice just the credit: untick any orders still waiting.
     await page.goto(`/billing/${qa.companyId}`);
-    await page.getByRole('checkbox', { name: `Include order #${shortOrder.id}` }).uncheck();
+    for (const box of await page.getByRole('checkbox', { name: /^Include order/ }).all()) {
+      await box.uncheck();
+    }
     await expect(page.getByText('Invoice total -₹50.00')).toBeVisible();
     await page.getByRole('button', { name: 'Create invoice' }).click();
-    await expect(page.getByText('Credit on #' + shortOrder.id)).toBeVisible();
+    await expect(page.getByText('Credit on #' + made.today)).toBeVisible();
     await expect(page.getByRole('row', { name: /^Total/ })).toContainText('-₹50.00');
   });
 

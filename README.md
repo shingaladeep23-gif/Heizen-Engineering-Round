@@ -200,7 +200,7 @@ The server re-prices everything itself; the form's totals are only a preview.
 
 **Currency: INR**, stored as paise. The spec's examples are in dollars and cents, so "round up to the next 5 cents" became "round up to the next 5 paise" (₹2.11 → ₹2.15).
 
-**Changes after an order is invoiced: credits, not edits.** An invoice's total is stored when it's created and never changes. If an invoiced order is cancelled or rejected, a credit for what's left on it (its total minus any earlier credits) goes onto the company's next invoice. A delivered order that turned out short gets a credit too, capped at what the order cost. Changes that don't involve money (time, address, packaging) are simply allowed. I chose this over freezing invoiced orders, or voiding and redoing invoices, because it covers all three cases the spec mentions, even after an invoice is paid, and it's how real billing works.
+**Changes after an order is invoiced: credits, not edits.** An invoice's total is stored when it's created and never changes. If an invoiced order is cancelled or rejected, a credit for its full amount goes onto the company's next invoice. A delivered order that turned out short gets a credit too, capped at what the order cost (less any earlier credits on it). Changes that don't involve money (time, address, packaging) are simply allowed. I chose this over freezing invoiced orders, or voiding and redoing invoices, because it covers all three cases the spec mentions, even after an invoice is paid, and it's how real billing works.
 
 **JWT in an httpOnly cookie, user reloaded on every request.** Page JavaScript can't read the token. Reloading the user costs one indexed lookup per request, but deactivating someone or changing their role takes effect immediately.
 
@@ -303,6 +303,7 @@ I did the [Must] items properly first and went over them again with tests. With 
 4. Kitchen board: a per-station "cook screen" mode with bigger buttons, and push updates instead of polling every 30 s.
 5. Billing: invoice PDFs, payment terms per company instead of a fixed 14 days, and partial payments.
 6. Tests: more unit tests on the services themselves (they're covered through Playwright today), and running Playwright in CI on every push, not only in a local pre-commit hook.
+7. Staff: switching a driver off, or changing their role, leaves any company that uses them as its default driver still pointing at them. Newly confirmed orders still get that person as their driver, and dispatch has to pick someone else for each drop (the driver list only offers active drivers). Nothing is lost, but the Staff page should warn and offer to pick a new default.
 
 ---
 
@@ -331,7 +332,8 @@ I did the [Must] items properly first and went over them again with tests. With 
 | "Late and at-risk" | Late: the planned kitchen-ready time has passed. At risk: due within 30 minutes (a setting). |
 | Are admins drivers? | No. Admins can do everything except have their "own" deliveries. |
 | When an order became confirmed | At the cut-off moment itself, even if processing ran later, because that's when it became billable. |
-| Lines after confirmation | Can't be edited, so order totals (and invoices) stay fixed. Admins can change delivery details, cancel, reject or credit. |
+| Lines after confirmation | Can't be edited, so order totals (and invoices) stay fixed. Admins can change delivery details, cancel or reject, and credit once it's delivered. |
+| Credits ("a delivered order that turns out short") | Only on delivered orders. Before delivery nothing can be short, and cancelling or rejecting covers an order that won't go ahead. |
 | Overdue invoices | Unpaid for more than 14 days. |
 | "Lists are paginated on the server" | The order list, which grows without limit, is paginated on the server (20 per page) with server-side search and filters. Reference lists (dishes, options, tiers, companies, staff) are small and loaded whole. A company's "not invoiced yet" list is bounded by its billing cycle, and staff tick items across the whole list to build an invoice, so it isn't split into pages. |
 

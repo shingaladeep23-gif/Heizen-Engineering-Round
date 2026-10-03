@@ -1,9 +1,8 @@
-import { creditLeft, invoiceTotal, isBillable } from './billing-rules.js';
+import { BILLABLE, creditLeft, invoiceTotal } from './billing-rules.js';
 
 describe('billing rules', () => {
   it('bills confirmed and delivered orders only', () => {
-    expect(['CONFIRMED', 'DELIVERED'].every(isBillable)).toBe(true);
-    expect(['DRAFT', 'PLACED', 'CANCELLED', 'REJECTED'].some(isBillable)).toBe(false);
+    expect(BILLABLE).toEqual(['CONFIRMED', 'DELIVERED']);
   });
 
   it('totals an invoice as its orders plus its credits', () => {

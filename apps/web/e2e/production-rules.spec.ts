@@ -1288,11 +1288,15 @@ test.describe('business rules on the live site', () => {
       400,
     );
 
-    // Z invoiced, part-credited, then cancelled: credited the rest, never more.
+    // Z (confirmed, not delivered) can't be credited for a shortage; once
+    // invoiced and cancelled, the whole amount comes back as a credit.
     const inv2 = await ok<{ id: number; total: number }>(invoice([s.orders.z]));
     const z = await order(s.orders.z);
     expect(inv2.total).toBe(z.total);
-    await ok(post(`/api/billing/orders/${s.orders.z}/credit`, { amount: 500, reason: 'QA part' }));
+    await refused(
+      post(`/api/billing/orders/${s.orders.z}/credit`, { amount: 500, reason: 'QA early' }),
+      409,
+    );
     await ok(post(`/api/orders/${s.orders.z}/cancel`));
     const cancelled = await order(s.orders.z);
     expect(cancelled.status).toBe('CANCELLED');
@@ -1321,7 +1325,6 @@ test.describe('business rules on the live site', () => {
     expect(credits.map((c) => c.reason)).toEqual(
       expect.arrayContaining([
         'QA short',
-        'QA part',
         'Cancelled after invoicing',
         'Rejected after invoicing: QA out of stock',
       ]),

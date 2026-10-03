@@ -890,7 +890,7 @@ test.describe('every screen, every role', () => {
     await expect(page.getByRole('link', { name: 'Edit' })).toHaveCount(0);
   });
 
-  test('admin overrides on a confirmed order: delivery details, reject needs a reason, credits are capped', async ({
+  test('admin overrides on a confirmed order: delivery details, no credit before delivery, reject needs a reason', async ({
     page,
   }) => {
     await signIn(page, 'admin@test.com');
@@ -904,19 +904,16 @@ test.describe('every screen, every role', () => {
     await expect(page.locator('main')).toContainText('1:15 pm');
     await expect(page.locator('main')).toContainText('12:45 pm');
 
-    // Credit: more than the order cost is refused, with the limit in rupees.
-    await page.getByRole('button', { name: 'Credit short delivery' }).click();
-    await page.getByLabel('Amount to credit').fill('9999');
-    await page.getByLabel('Reason').fill('Ui: two boxes short');
-    await page.getByRole('button', { name: 'Record credit' }).click();
-    await toast(page, 'At most ₹540.00 can still be credited');
-    await page.getByLabel('Amount to credit').fill('25');
-    await page.getByRole('button', { name: 'Record credit' }).click();
-    await toast(page, 'Credit recorded');
-    await expect(page.getByRole('row', { name: /Ui: two boxes short/ })).toContainText('-₹25.00');
+    // Not delivered yet, so nothing can be short: no credit.
+    await expect(page.getByRole('button', { name: 'Credit short delivery' })).toHaveCount(0);
 
-    // Reject: a reason is required, and the box starts empty (not the credit's reason).
-    await page.getByRole('button', { name: 'Reject' }).click();
+    // Reject: the box starts empty each time, and a reason is required.
+    const reject = page.getByRole('button', { name: 'Reject', exact: true });
+    await reject.click();
+    await page.getByRole('dialog').getByLabel('Reason').fill('changed my mind');
+    await page.keyboard.press('Escape');
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+    await reject.click();
     await expect(page.getByRole('dialog').getByLabel('Reason')).toHaveValue('');
     await page.getByRole('button', { name: 'Reject order' }).click();
     await toast(page, 'Say why');
@@ -1117,10 +1114,23 @@ test.describe('every screen, every role', () => {
 
   // ---------- Billing (4.9) ----------
 
-  test('billing: pick what to invoice, totals add up, mark paid, credits follow cancellations', async ({
+  test('billing: a short delivery credited, pick what to invoice, totals add up, mark paid, cancelling credits', async ({
     page,
   }) => {
     await signIn(page, 'admin@test.com');
+    // The order dispatch delivered above: a credit for a short delivery,
+    // never more than the order cost.
+    await page.goto(`/orders/${s.kitchen}`);
+    await page.getByRole('button', { name: 'Credit short delivery' }).click();
+    await page.getByLabel('Amount to credit').fill('9999');
+    await page.getByLabel('Reason').fill('Ui: two boxes short');
+    await page.getByRole('button', { name: 'Record credit' }).click();
+    await toast(page, /At most ₹[\d,]+\.\d\d can still be credited/);
+    await page.getByLabel('Amount to credit').fill('25');
+    await page.getByRole('button', { name: 'Record credit' }).click();
+    await toast(page, 'Credit recorded');
+    await expect(page.getByRole('row', { name: /Ui: two boxes short/ })).toContainText('-₹25.00');
+
     await page.goto('/billing');
     await page.getByRole('cell', { name: COMPANY }).click();
     await expect(page.getByText(`Bill to ${COMPANY} Pvt Ltd, accounts@${DOMAIN}`)).toBeVisible();
@@ -1170,17 +1180,14 @@ test.describe('every screen, every role', () => {
     await page.goto(`/orders/${s.confirmed}`);
     await expect(page.getByText(/^Invoice #\d+$/)).toBeVisible();
     await page.getByRole('button', { name: 'Cancel order' }).click();
-    await expect(page.getByRole('dialog')).toContainText(
-      'a credit for what’s left on it (its total, less any earlier credits)',
-    );
+    await expect(page.getByRole('dialog')).toContainText('a credit for the full amount');
     await page.getByRole('button', { name: 'Yes, cancel it' }).click();
-    // ₹540 less the ₹25 already credited.
     await expect(page.getByRole('row', { name: /Cancelled after invoicing/ })).toContainText(
-      '-₹515.00',
+      '-₹540.00',
     );
     await page.goto(`/billing/${s.companyId}`);
     await expect(page.getByText('Credit: Cancelled after invoicing')).toBeVisible();
-    await expect(page.getByText('Invoice total -₹515.00')).toBeVisible();
+    await expect(page.getByText('Invoice total -₹540.00')).toBeVisible();
     await page.getByRole('button', { name: 'Create invoice' }).click();
     await expect(page.getByText('Credit on #' + s.confirmed).first()).toBeVisible();
 

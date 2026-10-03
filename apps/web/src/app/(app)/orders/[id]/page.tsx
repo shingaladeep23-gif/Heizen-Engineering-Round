@@ -177,7 +177,7 @@ export default function OrderPage() {
               Mark all cooked
             </Button>
           )}
-          {canBill && ['CONFIRMED', 'DELIVERED'].includes(o.status) && (
+          {canBill && o.status === 'DELIVERED' && (
             <Button variant="light" onClick={() => setDialog('credit')}>
               Credit short delivery
             </Button>
@@ -325,7 +325,7 @@ export default function OrderPage() {
         <Stack>
           <Text size="sm">
             {o.invoice
-              ? 'This order is already invoiced, so a credit for what’s left on it (its total, less any earlier credits) will go on the company’s next invoice.'
+              ? 'This order is already invoiced, so a credit for the full amount will go on the company’s next invoice.'
               : 'The company won’t be billed for it.'}
           </Text>
           <Button color="red" loading={cancel.isPending} onClick={() => cancel.mutate(undefined)}>
