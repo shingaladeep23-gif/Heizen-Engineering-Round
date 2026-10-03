@@ -355,6 +355,7 @@ test.describe('production journey', () => {
 
     // Invoice just the credit: untick any orders still waiting.
     await page.goto(`/billing/${qa.companyId}`);
+    await expect(page.getByText('Credit: Automated check: one box short')).toBeVisible(); // loaded
     for (const box of await page.getByRole('checkbox', { name: /^Include order/ }).all()) {
       await box.uncheck();
     }
