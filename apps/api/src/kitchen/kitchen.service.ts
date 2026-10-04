@@ -111,6 +111,29 @@ export class KitchenService {
     });
   }
 
+  /**
+   * The same step on several units at once, e.g. "start all 12 Rajma Chawal
+   * (Jeera rice)". Each unit goes through mark() on its own, with its own
+   * order lock, so the rules are exactly those of one click each. A unit
+   * someone else already moved on, or whose order was cancelled meanwhile,
+   * is skipped rather than failing the rest.
+   */
+  async markMany(unitIds: number[], action: 'start' | 'done') {
+    const ids = [...new Set(unitIds)].sort((a, b) => a - b);
+    let changed = 0;
+    for (const id of ids) {
+      try {
+        await this.mark(id, action);
+        changed++;
+      } catch (error) {
+        if (!(error instanceof ConflictException || error instanceof NotFoundException)) {
+          throw error;
+        }
+      }
+    }
+    return { changed, skipped: ids.length - changed };
+  }
+
   /** Admin: mark every unit of an order done in one go (spec 4.7). */
   async forceComplete(orderId: number) {
     return this.db.$transaction(async (tx) => {

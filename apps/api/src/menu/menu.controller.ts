@@ -1,5 +1,4 @@
 import { Body, Controller, Delete, Get, Param, Post, Put, Query } from '@nestjs/common';
-import { IdPipe } from '../id.pipe.js';
 import {
   categorySchema,
   menuItemSchema,
@@ -8,47 +7,30 @@ import {
   type CategoryInput,
 } from '@fernleaf/shared';
 import { Can } from '../auth/auth.guard.js';
-import { PrismaService } from '../prisma.service.js';
+import { IdPipe } from '../id.pipe.js';
 import { ZodPipe } from '../zod.pipe.js';
 import { MenuService } from './menu.service.js';
 
 @Controller('menu')
 export class MenuController {
-  constructor(
-    private readonly db: PrismaService,
-    private readonly menu: MenuService,
-  ) {}
+  constructor(private readonly menu: MenuService) {}
 
   @Get('categories')
   @Can('catalogue.view')
   categories() {
-    return this.db.menuCategory.findMany({
-      orderBy: { position: 'asc' },
-      include: {
-        items: {
-          orderBy: { position: 'asc' },
-          include: { dish: { select: { name: true, active: true } } },
-        },
-      },
-    });
+    return this.menu.categories();
   }
 
   @Post('categories')
   @Can('catalogue.manage')
-  async createCategory(@Body(new ZodPipe(categorySchema)) input: Required<CategoryInput>) {
-    const last = await this.db.menuCategory.aggregate({ _max: { position: true } });
-    return this.db.menuCategory.create({
-      data: { ...input, position: (last._max.position ?? -1) + 1 },
-    });
+  createCategory(@Body(new ZodPipe(categorySchema)) input: Required<CategoryInput>) {
+    return this.menu.createCategory(input);
   }
 
   @Put('categories/order')
   @Can('catalogue.manage')
-  async orderCategories(@Body(new ZodPipe(reorderSchema)) { ids }: { ids: number[] }) {
-    await this.db.$transaction(
-      ids.map((id, position) => this.db.menuCategory.update({ where: { id }, data: { position } })),
-    );
-    return { ok: true };
+  orderCategories(@Body(new ZodPipe(reorderSchema)) { ids }: { ids: number[] }) {
+    return this.menu.orderCategories(ids);
   }
 
   @Put('categories/:id')
@@ -57,36 +39,25 @@ export class MenuController {
     @Param('id', IdPipe) id: number,
     @Body(new ZodPipe(categorySchema)) input: Required<CategoryInput>,
   ) {
-    return this.db.menuCategory.update({ where: { id }, data: input });
+    return this.menu.updateCategory(id, input);
   }
 
   @Post('categories/:id/items')
   @Can('catalogue.manage')
-  async addItem(
+  addItem(
     @Param('id', IdPipe) categoryId: number,
     @Body(new ZodPipe(menuItemSchema)) { dishId }: { dishId: number },
   ) {
-    const last = await this.db.menuItem.aggregate({
-      where: { categoryId },
-      _max: { position: true },
-    });
-    return this.db.menuItem.create({
-      data: { categoryId, dishId, position: (last._max.position ?? -1) + 1 },
-    });
+    return this.menu.addItem(categoryId, dishId);
   }
 
   @Put('categories/:id/items/order')
   @Can('catalogue.manage')
-  async orderItems(
+  orderItems(
     @Param('id', IdPipe) categoryId: number,
     @Body(new ZodPipe(reorderSchema)) { ids }: { ids: number[] },
   ) {
-    await this.db.$transaction(
-      ids.map((id, position) =>
-        this.db.menuItem.update({ where: { id, categoryId }, data: { position } }),
-      ),
-    );
-    return { ok: true };
+    return this.menu.orderItems(categoryId, ids);
   }
 
   @Put('items/:id')
@@ -95,16 +66,13 @@ export class MenuController {
     @Param('id', IdPipe) id: number,
     @Body(new ZodPipe(toggleSchema)) { active }: { active: boolean },
   ) {
-    return this.db.menuItem.update({ where: { id }, data: { active } });
+    return this.menu.toggleItem(id, active);
   }
 
-  // Taking a dish off a category is just removing a placement; the dish and
-  // its history are untouched.
   @Delete('items/:id')
   @Can('catalogue.manage')
-  async removeItem(@Param('id', IdPipe) id: number) {
-    await this.db.menuItem.delete({ where: { id } });
-    return { ok: true };
+  removeItem(@Param('id', IdPipe) id: number) {
+    return this.menu.removeItem(id);
   }
 
   @Get('preview')

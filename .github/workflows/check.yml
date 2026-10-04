@@ -1,0 +1,49 @@
+# The same checks as the local pre-commit hook (npm run check), on every push:
+# lint, type-check, unit tests, and Playwright against production builds of
+# both apps with a fresh Postgres.
+name: Check
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: fernleaf
+          POSTGRES_PASSWORD: fernleaf
+          POSTGRES_DB: fernleaf
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgresql://fernleaf:fernleaf@localhost:5432/fernleaf
+      JWT_SECRET: only-for-ci
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Prisma client and tables
+        working-directory: apps/api
+        run: npx prisma generate && npx prisma migrate deploy
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - name: Browser for Playwright
+        working-directory: apps/web
+        run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: apps/web/test-results
+          retention-days: 7

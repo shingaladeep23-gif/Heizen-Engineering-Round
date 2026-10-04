@@ -1,3 +1,5 @@
+import { z } from 'zod';
+
 // The kitchen board: one row per prep unit (a combination on an order line).
 
 export type UnitState = 'waiting' | 'todo' | 'at-risk' | 'late' | 'cooking' | 'done';
@@ -19,3 +21,10 @@ export type KitchenUnit = {
 };
 
 export type KitchenBoard = { date: string; generatedAt: string; units: KitchenUnit[] };
+
+// One step on several units at once ("start all 12 Rajma Chawal, Jeera rice").
+export const batchSchema = z.object({
+  unitIds: z.array(z.int().min(1)).min(1, 'Pick at least one unit').max(500),
+  action: z.enum(['start', 'done']),
+});
+export type BatchInput = z.infer<typeof batchSchema>;

@@ -13,6 +13,7 @@ import {
   TextInput,
   Title,
 } from '@mantine/core';
+import { notifications } from '@mantine/notifications';
 import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useState } from 'react';
@@ -92,9 +93,108 @@ function UnitRow({ unit, date }: { unit: KitchenUnit; date: string }) {
   );
 }
 
+// Every unit not yet done, added up by dish and choices, so a cook can start
+// or finish "12 × Rajma Chawal Bowl (Jeera rice)" in one go. Only confirmed
+// orders: placed ones can't be worked yet.
+function DishBatches({ units }: { units: KitchenUnit[] }) {
+  const groups = new Map<string, KitchenUnit[]>();
+  for (const unit of units) {
+    if (unit.orderStatus !== 'CONFIRMED' || unit.doneAt) continue;
+    const key = `${unit.dishName}|${unit.choices}`;
+    groups.set(key, [...(groups.get(key) ?? []), unit]);
+  }
+  const batches = [...groups.values()].sort((a, b) => earliest(a).localeCompare(earliest(b)));
+  if (batches.length === 0) return <Text c="dimmed">Nothing left to cook here.</Text>;
+  return (
+    <Table>
+      <Table.Thead>
+        <Table.Tr>
+          <Table.Th>First cook by</Table.Th>
+          <Table.Th>What</Table.Th>
+          <Table.Th>Units</Table.Th>
+          <Table.Th />
+        </Table.Tr>
+      </Table.Thead>
+      <Table.Tbody>
+        {batches.map((batch) => (
+          <BatchRow key={batch[0].id} batch={batch} />
+        ))}
+      </Table.Tbody>
+    </Table>
+  );
+}
+
+const earliest = (batch: KitchenUnit[]) => batch.map((u) => u.kitchenReadyBy).sort()[0];
+
+function BatchRow({ batch }: { batch: KitchenUnit[] }) {
+  const canWork = useCan('kitchen.work');
+  const run = useAction(
+    (action: 'start' | 'done') =>
+      api<{ changed: number; skipped: number }>('/kitchen/units/batch', {
+        body: { unitIds: batch.map((u) => u.id), action },
+      }),
+    {
+      invalidate: ['kitchen'],
+      // Someone else may have moved a few of them in the meantime.
+      onSuccess: ({ skipped }) =>
+        skipped > 0 &&
+        notifications.show({ message: `${skipped} of them had already been moved on` }),
+    },
+  );
+  const first = batch[0];
+  const notStarted = batch.filter((u) => !u.startedAt).length;
+  const late = batch.some((u) => u.state === 'late');
+  const orders = new Set(batch.map((u) => u.orderId)).size;
+  return (
+    <Table.Tr style={{ background: late ? STATE.late.row : undefined }}>
+      <Table.Td fw={600}>{formatTime(earliest(batch))}</Table.Td>
+      <Table.Td>
+        <Text fw={600} size="sm">
+          {batch.reduce((sum, u) => sum + u.quantity, 0)} × {first.dishName}
+        </Text>
+        <Text size="xs" c="dimmed">
+          {first.choices || 'No choices'}
+        </Text>
+      </Table.Td>
+      <Table.Td>
+        <Text size="sm">
+          {batch.length} from {orders} order{orders === 1 ? '' : 's'}
+        </Text>
+        <Text size="xs" c="dimmed">
+          {batch.length - notStarted} cooking
+        </Text>
+      </Table.Td>
+      <Table.Td>
+        {canWork && (
+          <Group gap="xs" wrap="nowrap">
+            {notStarted > 0 && (
+              <Button
+                size="compact-sm"
+                variant="light"
+                loading={run.isPending && run.variables === 'start'}
+                onClick={() => run.mutate('start')}
+              >
+                Start all
+              </Button>
+            )}
+            <Button
+              size="compact-sm"
+              loading={run.isPending && run.variables === 'done'}
+              onClick={() => run.mutate('done')}
+            >
+              Done all
+            </Button>
+          </Group>
+        )}
+      </Table.Td>
+    </Table.Tr>
+  );
+}
+
 export default function KitchenPage() {
   const [date, setDate] = useState(todayIST);
   const [station, setStation] = useState('All');
+  const [view, setView] = useState('Each unit');
   // Refreshes on its own so a screen on the kitchen wall stays current.
   const board = useQuery({
     queryKey: ['kitchen', date],
@@ -114,7 +214,8 @@ export default function KitchenPage() {
         <div>
           <Title order={2}>Kitchen board</Title>
           <Text size="sm" c="dimmed">
-            {formatDay(date)}. Each row is one prep unit: a dish with one set of choices.
+            {formatDay(date)}. Each row is one prep unit: a dish with one set of choices. “By dish”
+            adds up the same dish and choices across orders, to cook them together.
           </Text>
         </div>
         <TextInput
@@ -141,9 +242,14 @@ export default function KitchenPage() {
         Late: should be cooked by now. At risk: due soon. “Not confirmed yet” rows are placed
         orders, shown so you can plan; they can be cooked once the cut-off confirms them.
       </Text>
-      <SegmentedControl data={stations} value={station} onChange={setStation} />
+      <Group>
+        <SegmentedControl data={stations} value={station} onChange={setStation} />
+        <SegmentedControl data={['Each unit', 'By dish']} value={view} onChange={setView} />
+      </Group>
 
-      {shown.length === 0 ? (
+      {view === 'By dish' ? (
+        <DishBatches units={shown} />
+      ) : shown.length === 0 ? (
         <Text c="dimmed">
           Nothing to cook for this date{station === 'All' ? '' : ` at ${station}`}.
         </Text>

@@ -84,7 +84,7 @@ Browser ──► Vercel: Next.js (apps/web)
 **One repo, npm workspaces, three parts:**
 
 - `apps/web`: Next.js 16, Mantine for the UI, TanStack Query for data. Every page is a client component that calls the API over HTTP. There is no business logic in Next.js and no server actions.
-- `apps/api`: NestJS 12 with Prisma 6. One folder per area: `auth`, `catalogue`, `pricing`, `menu`, `companies`, `orders`, `kitchen`, `dispatch`, `billing`, `settings`, `dashboard`, `demo-data`.
+- `apps/api`: NestJS 12 with Prisma 6. One Nest module per area: `auth`, `staff`, `catalogue`, `pricing`, `menu`, `companies`, `orders`, `kitchen`, `dispatch`, `billing`, `settings`, `dashboard`, `demo-data`. Controllers only parse input and name the permission a route needs; services hold the logic and are the only code that talks to Prisma. A module exports a service only when another area needs it: menus (orders, demo data), orders (kitchen, dispatch, dashboard), and dispatch, billing and pricing (the admin dashboard).
 - `packages/shared`: zod schemas used by both sides (the API enforces them, the forms reuse them), response types, money formatting, and the role → permission map.
 
 **Why the browser only talks to the Next.js domain:** the login cookie is httpOnly. If the browser called Render directly, that would be a third-party cookie, and some browsers block those. With the rewrite, the cookie is first-party and the setup stays simple.
@@ -190,7 +190,7 @@ The full schema with comments is in `apps/api/prisma/schema.prisma`. The ideas t
 
 The server re-prices everything itself; the form's totals are only a preview.
 
-**Kitchen (4.7).** Each combination is a prep unit at its dish's station (or "Unassigned"). Only confirmed orders can be worked. Start and done can't be repeated, and finishing an unstarted unit records the start too. "Kitchen started" is the first unit's start; "kitchen ready" is set only when every unit is done. Planned times are worked back from delivery: dispatch-ready = delivery − the company's minutes, and kitchen-ready = dispatch-ready − the kitchen buffer (30 minutes, a setting).
+**Kitchen (4.7).** Each combination is a prep unit at its dish's station (or "Unassigned"). The board lists units one by one, or ("By dish") adds up the same dish and choices across orders so a cook can start or finish "12 × Rajma Chawal Bowl (Jeera rice)" in one go; each unit still goes through the same rules and lock as a single click, and any that someone else moved on meanwhile are skipped. Only confirmed orders can be worked. Start and done can't be repeated, and finishing an unstarted unit records the start too. "Kitchen started" is the first unit's start; "kitchen ready" is set only when every unit is done. Planned times are worked back from delivery: dispatch-ready = delivery − the company's minutes, and kitchen-ready = dispatch-ready − the kitchen buffer (30 minutes, a setting).
 
 **Dispatch (4.8).** A drop moves through ready to go → out for delivery → delivered as one. Each step needs the previous one on *every* order in the drop, can't be repeated, and "out" also needs a driver. A confirmed order starts with its company's default driver, and dispatch can change it per drop. "On time" means delivered no later than the delivery time plus a grace period (10 minutes, a setting). It's stored on the order at the moment of delivery.
 
@@ -208,7 +208,7 @@ The server re-prices everything itself; the form's totals are only a preview.
 
 **Changes after an order is invoiced: credits, not edits.** An invoice's total is stored when it's created and never changes. If an invoiced order is cancelled or rejected, a credit for its full amount goes onto the company's next invoice. A delivered order that turned out short gets a credit too, capped at what the order cost (less any earlier credits on it). Changes that don't involve money (time, address, packaging) are simply allowed. I chose this over freezing invoiced orders, or voiding and redoing invoices, because it covers all three cases the spec mentions, even after an invoice is paid, and it's how real billing works.
 
-**JWT in an httpOnly cookie, user reloaded on every request.** Page JavaScript can't read the token. Reloading the user costs one indexed lookup per request, but deactivating someone or changing their role takes effect immediately.
+**JWT in an httpOnly cookie, user reloaded on every request.** Page JavaScript can't read the token. Reloading the user costs one indexed lookup per request, but deactivating someone or changing their role takes effect immediately. Ten failed sign-ins for one email from one address in 15 minutes pause further tries for that pair (kept in memory, which is enough for one API instance). Signing out clears the cookie but doesn't revoke the token itself: revoking would need a session table or a token blocklist, and it isn't worth it here because switching an account off already takes effect on its next request.
 
 **Prisma 6 with relation joins.** Prisma's newest release was still a release candidate, so I stayed on the stable line. The live menu preview first took 5–8 seconds: Prisma's default runs one query per level of nesting, and each one crosses from Render to Neon. Turning on `relationJoins` makes a nested read a single SQL query (the menu went from 12 queries to 1), and the kitchen board loads 400 orders (800 prep units) in about 0.15 s locally.
 
@@ -260,7 +260,7 @@ Built in the browser from the kitchen board's own data for today, so the two alw
 | Next up | The five unfinished units due soonest. |
 | Tomorrow so far | Portions on tomorrow's board (confirmed and placed), for prep planning. |
 
-Not shown: costs and money (not the kitchen's job), and drivers (dispatch's).
+Not shown: costs and money (not the kitchen's job; the order page leaves prices out for the kitchen and dispatch too), and drivers (dispatch's).
 
 ### Dispatch: "what leaves next, what's late, who's driving?"
 
@@ -307,7 +307,7 @@ I did the [Must] items properly first and went over them again with tests. With 
 2. Store delivery photos in object storage instead of the database.
 3. Kitchen board: a per-station "cook screen" mode with bigger buttons, and push updates instead of polling every 30 s.
 4. Billing: invoice PDFs, payment terms per company instead of a fixed 14 days, and partial payments.
-5. Tests: more unit tests on the services themselves (they're covered through Playwright today), and running Playwright in CI on every push, not only in a local pre-commit hook.
+5. Tests: more unit tests on the services themselves (invoicing, claiming orders and credits are covered through Playwright today), and a clock that tests can set, so the few live checks that depend on the time of day always run in full.
 6. Staff: switching a driver off, or changing their role, leaves any company that uses them as its default driver still pointing at them. Newly confirmed orders still get that person as their driver, and dispatch has to pick someone else for each drop (the driver list only offers active drivers). Nothing is lost, but the Staff page should warn and offer to pick a new default.
 
 ---
@@ -354,12 +354,13 @@ I did the [Must] items properly first and went over them again with tests. With 
 
 ## Tests
 
-The spec asked for tests on the rules most likely to break. Those are the pure-function unit tests (Vitest, **60 tests** in `apps/api/src/**/*.spec.ts`):
+The spec asked for tests on the rules most likely to break. Those are the pure-function unit tests (Vitest, **65 tests** in `apps/api/src/**/*.spec.ts`):
 - **cut-off calculation:** the spec's own Wednesday → Monday 16:00 example, weekends, kitchen holidays, same-day cut-off, and "today in IST" while UTC is still on yesterday
 - **pricing resolution:** typed, derived from cost and from a tier, overrides, missing base, zero cost, rounding with 1.15 (which floats can't hold exactly)
 - **combination counting:** the spec's 6 + 4 = 10 example, quantities that don't add up, a skipped required group, too many choices, unknown options, duplicate combinations, minimum quantity
-- **invoicing:** billable statuses, invoice totals with credits, the credit cap
-- kitchen unit states and dispatch step order
+- **invoicing:** billable statuses, invoice totals with credits, the credit cap, and a short delivery that is later cancelled netting to exactly zero
+- kitchen unit states, dispatch step order, and one driver per drop
+- validation messages (one problem named exactly, several pointed at their fields, in plain words) and the sign-in limit
 - the CSV parser and import rules (quoted commas, Windows line endings, every kind of bad row)
 - portions: the default size, the extra charge in the price, another size as another combination, sizes a group doesn't sell, and scaling the extra charge on each kind of tier
 
@@ -429,7 +430,7 @@ Running it found two real problems that local tests couldn't: transactions timin
 
 **The live checks clean up after themselves.** Everything they create is marked as test data ("Fernleaf QA ..." companies on `fernleaf-qa.in`, and "QA" catalogue items, tiers and staff). Before and after each live run, `e2e/qa-cleanup.ts` deletes exactly those rows in one transaction, so reviewers only ever see the demo data. That needs the database URL (`QA_DATABASE_URL`), and a live run refuses to start without it. It's a test harness talking to the database, not a feature of the app: the app itself never hard-deletes orders or dishes.
 
-A local **pre-commit hook** runs lint, type-check, unit tests and Playwright, and blocks the commit if anything fails. Every commit after the first few setup commits went through it. The same Playwright suite runs against the live site with `BASE_URL=...`; local tests that would change demo data skip themselves there. `screens.spec.ts` and `concurrency.spec.ts` run in both places, and the two live-only files (`production.spec.ts` and `production-rules.spec.ts`) run only there.
+A local **pre-commit hook** runs `npm run check` (lint, type-check, unit tests and Playwright) and blocks the commit if anything fails. Since the last day the same check also runs on GitHub Actions for every push (`.github/workflows/check.yml`), against a fresh Postgres, so it can be seen and not just taken on trust. The same Playwright suite runs against the live site with `BASE_URL=...`; local tests that would change demo data skip themselves there. `screens.spec.ts` and `concurrency.spec.ts` run in both places, and the two live-only files (`production.spec.ts` and `production-rules.spec.ts`) run only there.
 
 ---
 

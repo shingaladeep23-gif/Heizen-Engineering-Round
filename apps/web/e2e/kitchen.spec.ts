@@ -107,6 +107,52 @@ test.describe('kitchen board', () => {
     );
   });
 
+  test('the same dish and choices across orders are started and finished together', async ({
+    page,
+    request,
+  }) => {
+    await apiSignIn(request, 'admin@test.com');
+    const a = await createOrder(request, { deliveryDate: lockedDate(), lines: TWO_UNITS });
+    const b = await createOrder(request, { deliveryDate: lockedDate(), lines: TWO_UNITS });
+    await apiSignIn(request, 'kitchen@test.com');
+    const units = async () =>
+      (
+        (await (await request.get(`/api/kitchen?date=${lockedDate()}`)).json()).units as {
+          id: number;
+          orderId: number;
+          choices: string;
+          startedAt: string | null;
+          doneAt: string | null;
+        }[]
+      ).filter((u) => u.orderId === a.id || u.orderId === b.id);
+    const brown = (await units()).filter((u) => u.choices.includes('Brown rice'));
+    expect(brown).toHaveLength(2);
+
+    // One of them is already done by someone else: it's skipped, not an error.
+    await request.post(`/api/kitchen/units/${brown[0].id}/done`);
+    const started = await request.post('/api/kitchen/units/batch', {
+      data: { unitIds: brown.map((u) => u.id), action: 'start' },
+    });
+    expect(await started.json()).toEqual({ changed: 1, skipped: 1 });
+    const done = await request.post('/api/kitchen/units/batch', {
+      data: { unitIds: brown.map((u) => u.id), action: 'done' },
+    });
+    expect(await done.json()).toEqual({ changed: 1, skipped: 1 });
+    for (const unit of (await units()).filter((u) => u.choices.includes('Brown rice'))) {
+      expect(unit.doneAt).not.toBeNull();
+    }
+
+    // The board's "By dish" view adds identical units up with one button per batch.
+    await signIn(page, 'kitchen@test.com');
+    await page.goto('/kitchen');
+    await page.getByLabel('Delivery date').fill(lockedDate());
+    await page.getByText('By dish', { exact: true }).click();
+    const jeera = page.getByRole('row').filter({ hasText: 'Paneer Tikka Rice Bowl' }).filter({
+      hasText: 'Jeera rice',
+    });
+    await expect(jeera.first().getByRole('button', { name: 'Done all' })).toBeVisible();
+  });
+
   test('an admin can mark a whole order cooked', async ({ page, request }) => {
     await apiSignIn(request, 'admin@test.com');
     const order = await createOrder(request, { deliveryDate: lockedDate(), lines: TWO_UNITS });

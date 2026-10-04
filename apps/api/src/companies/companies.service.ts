@@ -46,6 +46,14 @@ export class CompaniesService {
     }));
   }
 
+  // Everyone, for the menu preview's employee picker.
+  employees() {
+    return this.db.employee.findMany({
+      orderBy: [{ company: { name: 'asc' } }, { name: 'asc' }],
+      select: { id: true, name: true, email: true, company: { select: { id: true, name: true } } },
+    });
+  }
+
   async detail(id: number): Promise<CompanyDetail> {
     const c = await this.db.company.findUnique({
       where: { id },

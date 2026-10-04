@@ -3,10 +3,12 @@ import { APP_GUARD } from '@nestjs/core';
 import { JwtModule } from '@nestjs/jwt';
 import { AuthController } from './auth.controller.js';
 import { AuthGuard } from './auth.guard.js';
+import { AuthService } from './auth.service.js';
 
 @Module({
   imports: [JwtModule.register({ global: true, secret: process.env.JWT_SECRET })],
   controllers: [AuthController],
-  providers: [{ provide: APP_GUARD, useClass: AuthGuard }],
+  // The guard runs on every request in the app, not just this module's.
+  providers: [AuthService, { provide: APP_GUARD, useClass: AuthGuard }],
 })
 export class AuthModule {}

@@ -112,6 +112,8 @@ export default function OrderPage() {
   });
   const [dialog, setDialog] = useState<'reject' | 'delivery' | 'cancel' | 'credit' | null>(null);
   const canBill = useCan('billing.manage');
+  // Prices are for whoever handles billing; the kitchen and dispatch see what to make and send.
+  const showMoney = useCan('billing.view');
   const [creditAmount, setCreditAmount] = useState<number | null>(null);
   const [reason, setReason] = useState('');
   // Each dialog starts empty, so a reason typed for one never turns up in another.
@@ -262,18 +264,18 @@ export default function OrderPage() {
               <Table.Th>Item</Table.Th>
               <Table.Th>Choices</Table.Th>
               <Table.Th ta="right">Qty</Table.Th>
-              <Table.Th ta="right">Each</Table.Th>
-              <Table.Th ta="right">Amount</Table.Th>
+              {showMoney && <Table.Th ta="right">Each</Table.Th>}
+              {showMoney && <Table.Th ta="right">Amount</Table.Th>}
             </Table.Tr>
           </Table.Thead>
           <Table.Tbody>
             {o.lines.flatMap((line) => [
               <Table.Tr key={`line-${line.id}`} fw={600}>
                 <Table.Td>{line.dishName}</Table.Td>
-                <Table.Td c="dimmed">{formatMoney(line.dishPrice)} base</Table.Td>
+                <Table.Td c="dimmed">{showMoney && `${formatMoney(line.dishPrice)} base`}</Table.Td>
                 <Table.Td ta="right">{line.quantity}</Table.Td>
-                <Table.Td />
-                <Table.Td ta="right">{formatMoney(line.total)}</Table.Td>
+                {showMoney && <Table.Td />}
+                {showMoney && <Table.Td ta="right">{formatMoney(line.total)}</Table.Td>}
               </Table.Tr>,
               ...line.combos.map((combo) => (
                 <Table.Tr key={`combo-${combo.id}`}>
@@ -282,28 +284,33 @@ export default function OrderPage() {
                     {combo.choices.length
                       ? combo.choices
                           .map((c) =>
-                            c.size
-                              ? `${c.optionName}, ${c.size.name} (+${formatMoney(c.price + c.size.extra)})`
-                              : `${c.optionName} (+${formatMoney(c.price)})`,
+                            [
+                              c.size ? `${c.optionName}, ${c.size.name}` : c.optionName,
+                              showMoney && ` (+${formatMoney(c.price + (c.size?.extra ?? 0))})`,
+                            ]
+                              .filter(Boolean)
+                              .join(''),
                           )
                           .join(', ')
                       : 'No choices'}
                   </Table.Td>
                   <Table.Td ta="right">{combo.quantity}</Table.Td>
-                  <Table.Td ta="right">{formatMoney(combo.unitPrice)}</Table.Td>
-                  <Table.Td ta="right">{formatMoney(combo.total)}</Table.Td>
+                  {showMoney && <Table.Td ta="right">{formatMoney(combo.unitPrice)}</Table.Td>}
+                  {showMoney && <Table.Td ta="right">{formatMoney(combo.total)}</Table.Td>}
                 </Table.Tr>
               )),
             ])}
-            <Table.Tr>
-              <Table.Td colSpan={4} ta="right" fw={700}>
-                Order total
-              </Table.Td>
-              <Table.Td ta="right" fw={700}>
-                {formatMoney(o.total)}
-              </Table.Td>
-            </Table.Tr>
-            {o.adjustments.map((a) => (
+            {showMoney && (
+              <Table.Tr>
+                <Table.Td colSpan={4} ta="right" fw={700}>
+                  Order total
+                </Table.Td>
+                <Table.Td ta="right" fw={700}>
+                  {formatMoney(o.total)}
+                </Table.Td>
+              </Table.Tr>
+            )}
+            {(showMoney ? o.adjustments : []).map((a) => (
               <Table.Tr key={a.id}>
                 <Table.Td colSpan={4} ta="right" c="dimmed">
                   Adjustment: {a.reason}
@@ -313,10 +320,12 @@ export default function OrderPage() {
             ))}
           </Table.Tbody>
         </Table>
-        <Text size="xs" c="dimmed" mt="xs">
-          Prices are fixed at the time the order was saved. Later catalogue or price changes
-          don&apos;t affect this order.
-        </Text>
+        {showMoney && (
+          <Text size="xs" c="dimmed" mt="xs">
+            Prices are fixed at the time the order was saved. Later catalogue or price changes
+            don&apos;t affect this order.
+          </Text>
+        )}
       </Card>
 
       <Card withBorder>

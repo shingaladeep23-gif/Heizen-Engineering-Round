@@ -1,26 +1,18 @@
-import { Body, Controller, Get, HttpCode, Post, Res, UnauthorizedException } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Post, Req, Res } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { loginSchema, type LoginInput, type Me } from '@fernleaf/shared';
+import { loginSchema, type LoginInput } from '@fernleaf/shared';
 import type { User } from '@prisma/client';
-import bcrypt from 'bcryptjs';
-import type { Response } from 'express';
-import { PrismaService } from '../prisma.service.js';
+import type { Request, Response } from 'express';
 import { ZodPipe } from '../zod.pipe.js';
 import { CurrentUser, Public } from './auth.guard.js';
+import { AuthService, toMe } from './auth.service.js';
 
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
-
-export const toMe = ({ id, name, email, role }: User): Me => ({
-  id,
-  name,
-  email,
-  role,
-});
 
 @Controller('auth')
 export class AuthController {
   constructor(
-    private readonly db: PrismaService,
+    private readonly auth: AuthService,
     private readonly jwt: JwtService,
   ) {}
 
@@ -29,14 +21,14 @@ export class AuthController {
   @HttpCode(200)
   async login(
     @Body(new ZodPipe(loginSchema)) { email, password }: LoginInput,
+    @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const user = await this.db.user.findUnique({
-      where: { email: email.toLowerCase() },
-    });
-    const ok = user?.active && (await bcrypt.compare(password, user.passwordHash));
-    if (!user || !ok) throw new UnauthorizedException({ message: 'Wrong email or password' });
-
+    // Behind Vercel and Render, the browser's address is the first one forwarded.
+    const from = String(req.headers['x-forwarded-for'] ?? req.ip)
+      .split(',')[0]
+      .trim();
+    const user = await this.auth.check(email, password, from);
     const token = await this.jwt.signAsync({ sub: user.id }, { expiresIn: '7d' });
     // httpOnly: page scripts can't read it. Browsers allow Secure on localhost too.
     res.cookie('session', token, {

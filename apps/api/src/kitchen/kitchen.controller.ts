@@ -1,4 +1,5 @@
-import { Controller, Get, HttpCode, Param, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Param, Post, Query } from '@nestjs/common';
+import { batchSchema, type BatchInput } from '@fernleaf/shared';
 import { IdPipe } from '../id.pipe.js';
 import { z } from 'zod';
 import { Can } from '../auth/auth.guard.js';
@@ -30,6 +31,13 @@ export class KitchenController {
   async done(@Param('id', IdPipe) id: number) {
     await this.kitchen.mark(id, 'done');
     return { ok: true };
+  }
+
+  @Post('units/batch')
+  @HttpCode(200)
+  @Can('kitchen.work')
+  markMany(@Body(new ZodPipe(batchSchema)) { unitIds, action }: BatchInput) {
+    return this.kitchen.markMany(unitIds, action);
   }
 
   @Post('orders/:id/complete')

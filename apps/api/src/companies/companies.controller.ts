@@ -3,16 +3,12 @@ import { IdPipe } from '../id.pipe.js';
 import { companySchema, employeeImportSchema, employeeSchema } from '@fernleaf/shared';
 import type { z } from 'zod';
 import { Can } from '../auth/auth.guard.js';
-import { PrismaService } from '../prisma.service.js';
 import { ZodPipe } from '../zod.pipe.js';
 import { CompaniesService } from './companies.service.js';
 
 @Controller()
 export class CompaniesController {
-  constructor(
-    private readonly db: PrismaService,
-    private readonly companies: CompaniesService,
-  ) {}
+  constructor(private readonly companies: CompaniesService) {}
 
   @Get('companies')
   @Can('orders.view') // the order list filters by company
@@ -53,10 +49,7 @@ export class CompaniesController {
   @Get('employees')
   @Can('companies.view')
   employees() {
-    return this.db.employee.findMany({
-      orderBy: [{ company: { name: 'asc' } }, { name: 'asc' }],
-      select: { id: true, name: true, email: true, company: { select: { id: true, name: true } } },
-    });
+    return this.companies.employees();
   }
 
   @Post('employees')
