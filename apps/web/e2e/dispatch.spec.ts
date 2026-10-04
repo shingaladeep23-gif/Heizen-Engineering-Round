@@ -11,6 +11,9 @@ test.describe('dispatch board', () => {
     page,
     request,
   }) => {
+    // Walks the whole board through five steps, and the local database keeps
+    // every earlier run's drops for that date, so give it extra time.
+    test.slow();
     const time = await freeTime(ACME, lockedDate());
     await apiSignIn(request, 'admin@test.com');
     // Priya Raman may change the time; both orders are for Acme HQ at the same time.

@@ -103,7 +103,7 @@ Browser ──► Vercel: Next.js (apps/web)
 
 **Permissions.** `packages/shared/src/permissions.ts` is the only file that knows role names. Endpoints say `@Can('orders.manage')`, never `role === 'ADMIN'`, and one global guard checks every request on the server. Adding a role means adding one entry to that map (plus the enum value in the schema, and a dashboard entry, which TypeScript will insist on).
 
-**Errors** always come back as `{ message, fieldErrors? }`: validation from the zod pipe, rule breaks from the services, and database errors through one exception filter. Forms put field errors next to the field and show the message as a toast.
+**Errors** always come back as `{ message, fieldErrors? }`: validation from the zod pipe, rule breaks from the services, and database errors through one exception filter. An id in a URL that can't exist (`/orders/abc`, `-1`, too big for the database) is a plain 404, and a required one that's missing is a 400 that names it, never a crash. Forms put field errors next to the field and show the message as a toast.
 
 ---
 
@@ -354,17 +354,17 @@ I did the [Must] items properly first and went over them again with tests. With 
 
 ## Tests
 
-The spec asked for tests on the rules most likely to break. Those are the pure-function unit tests (Vitest, **65 tests** in `apps/api/src/**/*.spec.ts`):
+The spec asked for tests on the rules most likely to break. Those are the pure-function unit tests (Vitest, **68 tests** in `apps/api/src/**/*.spec.ts`):
 - **cut-off calculation:** the spec's own Wednesday → Monday 16:00 example, weekends, kitchen holidays, same-day cut-off, and "today in IST" while UTC is still on yesterday
 - **pricing resolution:** typed, derived from cost and from a tier, overrides, missing base, zero cost, rounding with 1.15 (which floats can't hold exactly)
 - **combination counting:** the spec's 6 + 4 = 10 example, quantities that don't add up, a skipped required group, too many choices, unknown options, duplicate combinations, minimum quantity
 - **invoicing:** billable statuses, invoice totals with credits, the credit cap, and a short delivery that is later cancelled netting to exactly zero
 - kitchen unit states, dispatch step order, and one driver per drop
-- validation messages (one problem named exactly, several pointed at their fields, in plain words) and the sign-in limit
+- validation messages (one problem named exactly, several pointed at their fields, in plain words), ids in URLs, and the sign-in limit
 - the CSV parser and import rules (quoted commas, Windows line endings, every kind of bad row)
 - portions: the default size, the extra charge in the price, another size as another combination, sizes a group doesn't sell, and scaling the extra charge on each kind of tier
 
-**Playwright** (**127 tests** in `apps/web/e2e`, plus the live-only files below) drives a real browser against **production builds** of both apps and a real Postgres. It covers:
+**Playwright** (**128 tests** in `apps/web/e2e`, plus the live-only files below) drives a real browser against **production builds** of both apps and a real Postgres. It covers:
 - each role's sign-in and landing page
 - server-side 403s for every role on things they shouldn't touch
 - creating a dish
@@ -394,7 +394,7 @@ Writing it found six problems, all fixed:
 - toasts covered the buttons you'd press next
 - wide tables pushed phone screens sideways
 
-**People acting at once, and odd input** (`e2e/concurrency.spec.ts`, 27 tests) sets up the moments a busy kitchen actually has, with real simultaneous requests, locally and on the live site:
+**People acting at once, and odd input** (`e2e/concurrency.spec.ts`, 28 tests) sets up the moments a busy kitchen actually has, with real simultaneous requests, locally and on the live site:
 - the same account on two devices, and signing out on one; two admins switching each other off; an account switched off while it's signed in elsewhere; a forged session cookie
 - two admins editing the same order, an edit against a cancel, the cut-off run twice at once
 - two cooks on the last two units of an order, or on the same unit; a cook against a force-complete or a cancel
@@ -427,6 +427,8 @@ Running it found two real problems that local tests couldn't: transactions timin
 - drops, step order, driver rules, and on-time vs late deliveries
 - every invoice reconciling with its orders and credits, credits when invoiced orders are cancelled or rejected, and a cancel racing an invoice
 - the admin dashboard agreeing with the order list and the billing page
+
+**A last check of the live site before submitting**, outside the test files: every page opened as each of the four roles on a desktop and a phone screen (130 page loads, watching for script errors, failed calls, wrong "no access" pages and anything wider than the screen); about 65 malformed or hostile requests to the API (broken JSON, wrong types, huge values, forged tokens, other roles' endpoints); the boards opened from browsers in Los Angeles, London and Kiribati to check "today" and every time stay in IST; and 21 read-only consistency checks over every order in the database (totals add up, statuses match their timestamps, no drop out with two drivers). It found two problems, both fixed: dispatch opening a company asked for the price tiers and menu it isn't allowed to see (two 403s and an error toast), and a required id left out of a query string gave a 500 instead of a 400.
 
 **The live checks clean up after themselves.** Everything they create is marked as test data ("Fernleaf QA ..." companies on `fernleaf-qa.in`, and "QA" catalogue items, tiers and staff). Before and after each live run, `e2e/qa-cleanup.ts` deletes exactly those rows in one transaction, so reviewers only ever see the demo data. That needs the database URL (`QA_DATABASE_URL`), and a live run refuses to start without it. It's a test harness talking to the database, not a feature of the app: the app itself never hard-deletes orders or dishes.
 
