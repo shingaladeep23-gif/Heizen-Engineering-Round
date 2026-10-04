@@ -364,7 +364,7 @@ The spec asked for tests on the rules most likely to break. Those are the pure-f
 - the CSV parser and import rules (quoted commas, Windows line endings, every kind of bad row)
 - portions: the default size, the extra charge in the price, another size as another combination, sizes a group doesn't sell, and scaling the extra charge on each kind of tier
 
-**Playwright** (**124 tests** in `apps/web/e2e`, plus the live-only files below) drives a real browser against **production builds** of both apps and a real Postgres. It covers:
+**Playwright** (**127 tests** in `apps/web/e2e`, plus the live-only files below) drives a real browser against **production builds** of both apps and a real Postgres. It covers:
 - each role's sign-in and landing page
 - server-side 403s for every role on things they shouldn't touch
 - creating a dish

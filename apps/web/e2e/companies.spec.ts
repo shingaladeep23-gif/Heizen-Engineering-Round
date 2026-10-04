@@ -58,10 +58,13 @@ test.describe('companies and employees', () => {
     request,
   }) => {
     await apiSignIn(request, 'admin@test.com');
+    // An order of its own, so the address has one even on a fresh database.
+    const order = await createOrder(request);
+    const { address } = await (await request.get(`/api/orders/${order.id}`)).json();
     const company = await acme(request);
-    // HQ (the first address) has orders from the order tests and seed data.
+    const others = company.addresses.filter((a: { id: number }) => a.id !== address.id);
     let res = await request.put(`/api/companies/${ACME}`, {
-      data: { ...company, addresses: company.addresses.slice(1), defaultAddressIndex: 0 },
+      data: { ...company, addresses: others, defaultAddressIndex: 0 },
     });
     expect(res.status()).toBe(400);
     expect((await res.json()).message).toMatch(/has orders/);
