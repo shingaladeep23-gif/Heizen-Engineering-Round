@@ -20,9 +20,11 @@ import { MenuService } from './menu/menu.service.js';
 import { OrdersController } from './orders/orders.controller.js';
 import { OrdersService } from './orders/orders.service.js';
 import { PricingController } from './pricing/pricing.controller.js';
+import { PricingService } from './pricing/pricing.service.js';
 import { PrismaErrorFilter } from './prisma-error.filter.js';
 import { PrismaModule } from './prisma.service.js';
 import { SettingsController } from './settings/settings.controller.js';
+import { SettingsService } from './settings/settings.service.js';
 import { StaffController } from './staff/staff.controller.js';
 
 @Module({
@@ -50,6 +52,8 @@ import { StaffController } from './staff/staff.controller.js';
     BillingService,
     CompaniesService,
     DashboardService,
+    PricingService,
+    SettingsService,
     { provide: APP_FILTER, useClass: PrismaErrorFilter },
   ],
 })

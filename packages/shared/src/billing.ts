@@ -13,7 +13,7 @@ export const createInvoiceSchema = z
   });
 export type CreateInvoiceInput = z.input<typeof createInvoiceSchema>;
 
-// A credit for a delivered order that turned out short (D7).
+// A credit for a delivered order that turned out short.
 export const creditSchema = z.object({
   amount: z.int().min(1, 'Must be above zero'), // paise to credit back
   reason: z.string().trim().min(3, 'Say why'),

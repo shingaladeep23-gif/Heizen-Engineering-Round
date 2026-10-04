@@ -83,12 +83,14 @@ export class DemoDataService implements OnApplicationBootstrap {
     if (!DEMO_MODE || this.refreshing) return;
     this.refreshing = true;
     try {
-      const completed = await this.orders.completePastDays();
       const created = await this.orders.topUp();
+      // Stage today first: wrapping up marks orders as started, and staging
+      // only runs on a day nobody has touched yet.
       const staged = await this.orders.stageTodayOnce();
+      const completed = await this.orders.wrapUpUnfinished();
       if (completed || created || staged) {
         this.log.log(
-          `Demo refresh: ${created} new orders, ${completed} past orders wrapped up, ${staged} of today's staged`,
+          `Demo refresh: ${created} new orders, ${staged} of today's staged, ${completed} unfinished orders wrapped up`,
         );
       }
     } catch (error) {

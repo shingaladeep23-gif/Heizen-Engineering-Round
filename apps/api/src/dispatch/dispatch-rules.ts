@@ -29,14 +29,21 @@ export function stageOf(orders: Progress[]): DropStage {
 /**
  * Why a step can't happen yet, or null if it can. Each step needs the one
  * before it on every order, can't be repeated, and "out for delivery" also
- * needs a driver.
+ * needs one driver for the whole drop.
  */
 export function stepProblem(orders: Progress[], step: DropStep): string | null {
   const { field, after, was } = STEPS[step];
   if (orders.every((o) => o[field] !== null)) return 'That step is already done for this drop';
   const behind = orders.filter((o) => o[after] === null).length;
   if (behind) return `${behind} of ${orders.length} orders aren't ${was} yet`;
-  if (step === 'out' && orders.some((o) => o.driverId === null)) return 'Assign a driver first';
+  if (step === 'out') {
+    if (orders.some((o) => o.driverId === null)) return 'Assign a driver first';
+    // An admin can move an order into a drop that has another driver. One drop,
+    // one driver: otherwise each driver would see half of it.
+    if (new Set(orders.map((o) => o.driverId)).size > 1) {
+      return 'The orders in this drop have different drivers; pick one driver for the drop';
+    }
+  }
   return null;
 }
 

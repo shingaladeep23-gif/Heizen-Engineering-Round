@@ -23,6 +23,7 @@ import {
   cutoffFor,
   dayOf,
   isOpen,
+  istLabel,
   plannedTimes,
   todayIST,
   type Calendar,
@@ -262,7 +263,7 @@ export class OrdersService {
     await this.close(order, 'CANCELLED', { cancelledAt: new Date() }, 'Cancelled after invoicing');
   }
 
-  // Admins reject an order the kitchen can't fulfil, before cooking starts (D8).
+  // Admins reject an order the kitchen can't fulfil, before cooking starts.
   async reject(id: number, reason: string) {
     const order = await this.find(id);
     if (!['PLACED', 'CONFIRMED'].includes(order.status) || order.kitchenStartedAt) {
@@ -299,7 +300,7 @@ export class OrdersService {
       }
       await tx.order.update({ where: { id: order.id }, data: { ...data, status: to } });
 
-      // D7: an invoice never changes, so money taken back after invoicing
+      // An invoice never changes, so money taken back after invoicing
       // becomes a credit on the company's next invoice. Only what's left
       // after any earlier credits (e.g. a short delivery) is credited.
       if (!current.invoiceId) return;
@@ -411,7 +412,7 @@ export class OrdersService {
   async runCutoff(day: Day) {
     const cutoffAt = await this.cutoffOf(day);
     if (cutoffAt > new Date()) {
-      throw bad('date', `The cut-off for that date hasn't passed yet (${cutoffAt.toISOString()})`);
+      throw bad('date', `The cut-off for that date hasn't passed yet: it's ${istLabel(cutoffAt)}`);
     }
     return { cutoffAt: cutoffAt.toISOString(), ...(await this.processDate(day, cutoffAt)) };
   }

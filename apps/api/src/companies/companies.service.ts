@@ -14,6 +14,7 @@ import {
 } from '@fernleaf/shared';
 import { Prisma } from '@prisma/client';
 import type { z } from 'zod';
+import { refuseClosingBookedDays } from '../orders/closing-days.js';
 import { PrismaService } from '../prisma.service.js';
 import { dayOf } from '../orders/calendar.js';
 import { checkRows } from './employee-import.js';
@@ -119,6 +120,24 @@ export class CompaniesService {
         defaultDriverId: input.defaultDriverId,
         priceTierId: input.priceTierId,
       };
+      // A new day off or holiday can't strand orders already booked for that day.
+      if (id !== null) {
+        const current = await tx.company.findUnique({ where: { id }, include: { holidays: true } });
+        if (current) {
+          await refuseClosingBookedDays(
+            tx,
+            {
+              workingDays: current.workingDays,
+              holidays: new Set(current.holidays.map((h) => dayOf(h.date))),
+            },
+            {
+              workingDays: input.workingDays,
+              holidays: new Set(input.holidays.map((h) => h.date)),
+            },
+            id,
+          );
+        }
+      }
       const company =
         id === null
           ? await tx.company.create({ data: fields })
@@ -161,7 +180,7 @@ export class CompaniesService {
   }
 
   // Two companies can't claim a domain, and a domain still used by an
-  // employee's email can't be dropped (D18).
+  // employee's email can't be dropped.
   private async checkDomains(tx: Tx, companyId: number | null, domains: string[]) {
     const taken = await tx.companyDomain.findMany({
       where: { domain: { in: domains }, companyId: { not: companyId ?? -1 } },
@@ -254,6 +273,22 @@ export class CompaniesService {
         throw new ConflictException({
           message: `${current.name} owns ${current.ownerOf.name}. Pick a new owner there before moving them.`,
         });
+      }
+      // Drafts and placed orders were made under the old company's address,
+      // prices and calendar, and would still be billed to it at the cut-off.
+      // So they have to be settled first: cancelled, or confirmed (confirmed
+      // orders stay with the company the employee was in when they ordered).
+      if (current.companyId !== input.companyId) {
+        const open = await this.db.order.findMany({
+          where: { employeeId: id, status: { in: ['DRAFT', 'PLACED'] } },
+          select: { id: true },
+          orderBy: { id: 'asc' },
+        });
+        if (open.length > 0) {
+          throw new ConflictException({
+            message: `${current.name} has open orders (${open.map((o) => `#${o.id}`).join(', ')}). Cancel them, or wait until they're confirmed, before moving them to another company.`,
+          });
+        }
       }
     }
     const data = {

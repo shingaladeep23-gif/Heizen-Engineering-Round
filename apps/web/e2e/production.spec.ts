@@ -425,7 +425,7 @@ test.describe('production journey', () => {
     await expect(page.getByRole('heading', { name: 'Admin dashboard' })).toBeVisible();
     await expect(page.getByText(/^Last 7 days/)).toBeVisible();
     await expect(page.getByText('Most ordered, last 7 days')).toBeVisible();
-    await expect(page.getByText(/have no price on Startup/)).toBeVisible();
+    await expect(page.getByText(/can.t be ordered on Startup/)).toBeVisible();
 
     await signIn(page, 'kitchen@test.com');
     await expect(page.getByRole('heading', { name: 'Kitchen dashboard' })).toBeVisible();

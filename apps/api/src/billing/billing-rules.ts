@@ -1,4 +1,5 @@
-// Billing rules (spec 4.9, D7), pure so they're easy to test.
+// Billing rules (spec 4.9), pure so they're easy to test. Why invoices never
+// change and credits are used instead: README, "Key decisions and trade-offs".
 
 // Confirmed orders are owed in full by the company; delivered ones too.
 // Cancelled, rejected and not-yet-confirmed orders are not.

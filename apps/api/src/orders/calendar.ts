@@ -22,6 +22,24 @@ export const istInstant = (day: Day, time: string) =>
 // Postgres DATE columns come back as UTC midnight.
 export const dayOf = (date: Date): Day => date.toISOString().slice(0, 10);
 
+// For messages: "Sun 4 Oct, 4:00 pm IST", whatever the server's own zone.
+const istFormat = new Intl.DateTimeFormat('en-IN', {
+  timeZone: 'Asia/Kolkata',
+  weekday: 'short',
+  day: 'numeric',
+  month: 'short',
+  hour: 'numeric',
+  minute: '2-digit',
+});
+export const istLabel = (instant: Date) => `${istFormat.format(instant)} IST`;
+const dayFormat = new Intl.DateTimeFormat('en-IN', {
+  timeZone: 'UTC', // a Day parses as UTC midnight; keep it that day
+  weekday: 'short',
+  day: 'numeric',
+  month: 'short',
+});
+export const dayLabel = (day: Day) => dayFormat.format(new Date(day));
+
 export const minutesBefore = (instant: Date, minutes: number) =>
   new Date(instant.getTime() - minutes * 60_000);
 

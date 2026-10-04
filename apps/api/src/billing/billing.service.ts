@@ -222,7 +222,7 @@ export class BillingService {
     };
   }
 
-  /** A credit for a delivered order that turned out short (D7, D74). */
+  /** A credit for a delivered order that turned out short. */
   async credit(orderId: number, { amount, reason }: CreditInput) {
     return this.db.$transaction(async (tx) => {
       await tx.$queryRaw`SELECT id FROM "Order" WHERE id = ${orderId} FOR UPDATE`;
@@ -231,7 +231,7 @@ export class BillingService {
         include: { adjustments: true },
       });
       if (!order) throw new NotFoundException({ message: 'Order not found' });
-      // A shortage only shows up once the order has arrived (D74).
+      // A shortage only shows up once the order has arrived.
       if (order.status !== 'DELIVERED') {
         throw new ConflictException({
           message: 'Only delivered orders can be credited for a short delivery',

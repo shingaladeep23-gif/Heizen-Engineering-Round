@@ -44,7 +44,8 @@ const names = (rows: Named[]) => rows.map((row) => row.name);
 /**
  * Null means the dish can't be ordered on this tier, so it's left off the menu.
  * `defaultTier` is only needed for portion sizes, whose extra charges scale
- * from the default tier's price (D75).
+ * from the default tier's price (see
+ * scaleExtra in price-rules.ts).
  */
 export function priceDish(
   dish: DishRow,

@@ -2,6 +2,24 @@
 import { z } from 'zod';
 import { ROLES, type Role } from './permissions.js';
 
+// Plain messages for any field that doesn't set its own, instead of zod's
+// technical defaults ("Invalid input: expected int, received number").
+z.config({
+  customError: (issue) => {
+    if (issue.code === 'invalid_type') {
+      if (issue.input === undefined || issue.input === null) return 'Required';
+      if (issue.expected === 'int') return 'Must be a whole number';
+      if (issue.expected === 'number') return 'Must be a number';
+      return 'Not a valid value';
+    }
+    if (issue.code === 'too_small' && issue.origin === 'number') {
+      return `Must be at least ${issue.minimum}`;
+    }
+    if (issue.code === 'too_big' && issue.origin === 'number') return `At most ${issue.maximum}`;
+    return undefined; // zod's own message
+  },
+});
+
 export const loginSchema = z.object({
   email: z.email('Enter a valid email'),
   password: z.string({ error: 'Enter your password' }).min(1, 'Enter your password'),

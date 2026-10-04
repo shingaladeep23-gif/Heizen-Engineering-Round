@@ -37,7 +37,7 @@ export class MenuService {
     if (!tier)
       return { employee: summary, tierName: 'No price tier', categories: [], secretCategories: [] };
 
-    // Portion size charges scale from the default tier's price (D75).
+    // Portion size charges scale from the default tier's price (scaleExtra).
     const defaultTier =
       settings.defaultTierId === tier.id || !settings.defaultTierId
         ? tier

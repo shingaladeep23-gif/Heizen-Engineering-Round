@@ -177,9 +177,10 @@ export class DemoOrders {
   private async menuFor(employeeId: number) {
     if (!this.menus.has(employeeId)) {
       const menu = await this.menuService.menuFor(employeeId);
+      // Every demo company takes lunch (12:00 to 13:30), so no breakfast dishes.
       this.menus.set(
         employeeId,
-        menu.categories.flatMap((c) => c.dishes),
+        menu.categories.filter((c) => c.name !== 'Breakfast').flatMap((c) => c.dishes),
       );
     }
     return this.menus.get(employeeId)!;
@@ -348,8 +349,9 @@ export class DemoOrders {
           const at = steps[key];
           if (at && at > now) steps[key] = minutesBefore(now, (keys.length - i) * 6);
         });
-        await this.db.order.update({
-          where: { id: order.id },
+        // Only if it's still untouched: a cancel or a cook may have got there first.
+        const { count } = await this.db.order.updateMany({
+          where: { id: order.id, status: 'CONFIRMED', kitchenStartedAt: null },
           data: {
             kitchenStartedAt: steps.kitchenStartedAt,
             kitchenReadyAt: steps.kitchenReadyAt,
@@ -357,6 +359,7 @@ export class DemoOrders {
             outForDeliveryAt: steps.outForDeliveryAt,
           },
         });
+        if (count === 0) continue;
         // Units are done when the order is; an order being cooked has started its first.
         for (const [i, combo] of order.lines.flatMap((l) => l.combos).entries()) {
           await this.db.orderCombo.update({
@@ -421,11 +424,6 @@ export class DemoOrders {
   }
 
   /**
-   * Demo only: yesterday's unfinished orders are completed overnight, as if
-   * the team had worked through them, so the history stays realistic for the
-   * whole review period. Only orders still CONFIRMED on a past date move.
-   */
-  /**
    * Today's orders were made days ago as future orders, so nothing has
    * happened to them yet. From 10:30 (when a real kitchen would be well into
    * lunch) spread them across the boards like stageToday() does for a fresh
@@ -454,16 +452,30 @@ export class DemoOrders {
     return orders.length;
   }
 
-  async completePastDays(now = new Date()) {
+  /**
+   * Demo only: demo orders nobody finished are completed as if the team had
+   * worked through them, so the boards and history stay believable for the
+   * whole review period without anyone clicking. That's every earlier day,
+   * plus today's deliveries more than two hours past their time. Only the
+   * demo companies, and each order only if it's still CONFIRMED when it's
+   * written, so a reviewer's orders, or a cancel landing meanwhile, are never
+   * overwritten.
+   */
+  async wrapUpUnfinished(now = new Date()) {
     const today = todayIST(now);
-    const [settings, stale] = await Promise.all([
+    const [settings, unfinished] = await Promise.all([
       this.db.settings.findUniqueOrThrow({ where: { id: 1 } }),
       this.db.order.findMany({
-        where: { status: 'CONFIRMED', deliveryDate: { lt: new Date(today) } },
+        where: {
+          status: 'CONFIRMED',
+          deliveryDate: { lte: new Date(today) },
+          company: { name: { in: DEMO_COMPANY_NAMES } },
+        },
         include: { company: true },
       }),
     ]);
-    for (const order of stale) {
+    let wrapped = 0;
+    for (const order of unfinished) {
       const day = dayOf(order.deliveryDate);
       const plan = plannedTimes(
         day,
@@ -471,9 +483,10 @@ export class DemoOrders {
         order.company.dispatchLeadMinutes,
         settings.kitchenBufferMinutes,
       );
+      if (day === today && now.getTime() < plan.deliverAt.getTime() + 2 * 60 * 60_000) continue;
       const t = timeline(plan, 'delivered', random(`${order.id}`), settings.onTimeGraceMinutes);
-      await this.db.order.update({
-        where: { id: order.id },
+      const { count } = await this.db.order.updateMany({
+        where: { id: order.id, status: 'CONFIRMED' },
         data: {
           status: 'DELIVERED',
           driverId: order.driverId ?? order.company.defaultDriverId,
@@ -485,11 +498,13 @@ export class DemoOrders {
           deliveredOnTime: t.deliveredOnTime,
         },
       });
+      if (count === 0) continue;
       await this.db.orderCombo.updateMany({
         where: { line: { orderId: order.id }, doneAt: null },
         data: { doneAt: t.kitchenReadyAt, startedAt: t.kitchenStartedAt },
       });
+      wrapped++;
     }
-    return stale.length;
+    return wrapped;
   }
 }

@@ -205,7 +205,7 @@ export default function TiersPage() {
             </Text>
             <Badge mt="xs" variant="light" color={tier.missingDishes ? 'red' : 'green'}>
               {tier.missingDishes
-                ? `${tier.missingDishes} dishes without a price`
+                ? `${tier.missingDishes} dishes can't be ordered`
                 : 'Every dish priced'}
             </Badge>
           </Card>

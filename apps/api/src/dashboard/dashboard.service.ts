@@ -5,7 +5,7 @@ import { BILLABLE } from '../billing/billing-rules.js';
 import { DispatchService } from '../dispatch/dispatch.service.js';
 import { addDays, todayIST } from '../orders/calendar.js';
 import { OrdersService } from '../orders/orders.service.js';
-import { pricesByTier, resolvePrice } from '../pricing/price-rules.js';
+import { PricingService } from '../pricing/pricing.service.js';
 import { PrismaService } from '../prisma.service.js';
 
 const DAY_MS = 86_400_000;
@@ -23,6 +23,7 @@ export class DashboardService {
     private readonly orders: OrdersService,
     private readonly dispatch: DispatchService,
     private readonly billing: BillingService,
+    private readonly pricing: PricingService,
   ) {}
 
   async admin(now = new Date()): Promise<AdminDashboard> {
@@ -33,7 +34,8 @@ export class DashboardService {
     const weekFrom = addDays(today, -7);
     const weekTo = addDays(today, -1);
 
-    const [todayOrders, drops, upcoming, companies, unpaid, paid, lastWeek, lines, tiers, dishes] =
+    const weekDates = { gte: date(weekFrom), lte: date(weekTo) };
+    const [todayOrders, drops, upcoming, companies, unpaid, paid, lastWeek, credits, lines, tiers] =
       await Promise.all([
         this.db.order.findMany({ where: { deliveryDate: date(today), status: billable } }),
         this.dispatch.drops(today),
@@ -50,21 +52,32 @@ export class DashboardService {
           _sum: { total: true },
         }),
         this.db.order.findMany({
-          where: { deliveryDate: { gte: date(weekFrom), lte: date(weekTo) } },
+          where: { deliveryDate: weekDates },
           select: { status: true, total: true, deliveredOnTime: true },
         }),
+        // Short-delivery credits on those orders come off their revenue.
+        this.db.adjustment.aggregate({
+          where: { order: { deliveryDate: weekDates, status: billable } },
+          _sum: { amount: true },
+        }),
+        // By dish, not by the name on the order line, so a renamed dish still counts once.
         this.db.orderLine.groupBy({
-          by: ['dishName'],
-          where: {
-            order: { deliveryDate: { gte: date(weekFrom), lte: date(weekTo) }, status: billable },
-          },
+          by: ['dishId'],
+          where: { order: { deliveryDate: weekDates, status: billable } },
           _sum: { quantity: true },
           orderBy: { _sum: { quantity: 'desc' } },
           take: 5,
         }),
-        this.db.priceTier.findMany({ orderBy: { id: 'asc' } }),
-        this.db.dish.findMany({ where: { active: true }, include: { prices: true } }),
+        this.pricing.tiers(),
       ]);
+    const dishNames = new Map(
+      (
+        await this.db.dish.findMany({
+          where: { id: { in: lines.map((l) => l.dishId) } },
+          select: { id: true, name: true },
+        })
+      ).map((d) => [d.id, d.name]),
+    );
 
     const byStatus = (status: string) => upcoming.find((g) => g.status === status);
     const sum = (rows: { total: number }[]) => rows.reduce((s, r) => s + r.total, 0);
@@ -96,22 +109,20 @@ export class DashboardService {
         from: weekFrom,
         to: weekTo,
         orders: week.length,
-        revenue: sum(week),
+        revenue: sum(week) + (credits._sum.amount ?? 0),
         delivered: week.filter((o) => o.status === 'DELIVERED').length,
         onTime: week.filter((o) => o.deliveredOnTime === true).length,
         cancelled: lastWeek.filter((o) => o.status === 'CANCELLED').length,
         rejected: lastWeek.filter((o) => o.status === 'REJECTED').length,
       },
-      topDishes: lines.map((l) => ({ name: l.dishName, portions: l._sum.quantity ?? 0 })),
+      topDishes: lines.map((l) => ({
+        name: dishNames.get(l.dishId) ?? '',
+        portions: l._sum.quantity ?? 0,
+      })),
+      // The same count as the Price tiers page.
       tiersMissingPrices: tiers
-        .map((tier) => {
-          const rule = { ...tier, factor: tier.factor?.toString() ?? null };
-          const missing = dishes.filter(
-            (d) => resolvePrice(rule, pricesByTier(d.prices), d.costPrice) === null,
-          ).length;
-          return { name: tier.name, missing };
-        })
-        .filter((t) => t.missing > 0),
+        .filter((t) => t.missingDishes > 0)
+        .map((t) => ({ name: t.name, missing: t.missingDishes })),
     };
   }
 }

@@ -1,5 +1,5 @@
 import { expect, test, type APIRequestContext } from '@playwright/test';
-import { apiSignIn, isLive, LOCAL_ONLY, signIn } from './helpers';
+import { apiSignIn, createOrder, isLive, LOCAL_ONLY, signIn } from './helpers';
 
 const ACME = 1;
 
@@ -82,6 +82,26 @@ test.describe('companies and employees', () => {
     expect(res.status()).toBe(400);
     expect((await res.json()).message).toMatch(/@bluepeak.io/);
   });
+
+  test('an employee with open orders is moved only once those are settled', async ({ request }) => {
+    await apiSignIn(request, 'admin@test.com');
+    const name = `mover${Date.now()}`;
+    const created = await request.post('/api/employees', {
+      data: { companyId: ACME, name: 'Mover', email: `${name}@acmeanalytics.in` },
+    });
+    expect(created.ok(), await created.text()).toBe(true);
+    const employee = await created.json();
+    const order = await createOrder(request, { employeeId: employee.id });
+
+    const move = { ...employee, companyId: 2, email: `${name}@bluepeak.io` };
+    const refused = await request.put(`/api/employees/${employee.id}`, { data: move });
+    expect(refused.status()).toBe(409);
+    expect((await refused.json()).message).toContain(`open orders (#${order.id})`);
+
+    await request.post(`/api/orders/${order.id}/cancel`);
+    const moved = await request.put(`/api/employees/${employee.id}`, { data: move });
+    expect(moved.ok(), await moved.text()).toBe(true);
+  });
 });
 
 test.describe('employee CSV import', () => {
@@ -141,6 +161,19 @@ test.describe('settings', () => {
     expect(info.problems).toContain("The kitchen isn't cooking that day");
 
     expect((await save(settings.holidays)).ok()).toBe(true);
+  });
+
+  test("a day that already has orders can't be made a holiday", async ({ request }) => {
+    await apiSignIn(request, 'admin@test.com');
+    const settings = await (await request.get('/api/settings')).json();
+    const order = await createOrder(request);
+    const day = (await (await request.get(`/api/orders/${order.id}`)).json()).deliveryDate;
+    const res = await request.put('/api/settings', {
+      data: { ...settings, holidays: [...settings.holidays, { date: day, name: 'Too late' }] },
+    });
+    expect(res.status()).toBe(409);
+    expect((await res.json()).message).toMatch(/Orders are already booked for .*\(\d+ orders\)/);
+    await request.post(`/api/orders/${order.id}/cancel`);
   });
 
   test('the settings page loads and saves', async ({ page }) => {

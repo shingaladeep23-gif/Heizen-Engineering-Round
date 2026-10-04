@@ -452,7 +452,7 @@ test.describe('every screen, every role', () => {
 
     const card = page.locator('.mantine-Card-root', { hasText: TIER });
     await expect(card).toContainText('Prices typed in');
-    await expect(card).toContainText('dishes without a price');
+    await expect(card).toContainText("dishes can't be ordered");
     await card.click();
     await expect(page.getByRole('heading', { name: TIER })).toBeVisible();
 
@@ -1255,7 +1255,7 @@ test.describe('every screen, every role', () => {
   }) => {
     await signIn(page, 'admin@test.com');
     await expect(page.getByText('Needs a decision')).toBeVisible();
-    await expect(page.getByText(new RegExp(`have no price on ${TIER}`))).toBeVisible();
+    await expect(page.getByText(new RegExp(`can.t be ordered on ${TIER}`))).toBeVisible();
     for (const label of ['Orders today', 'Not invoiced yet', 'Unpaid invoices', 'Last 7 days']) {
       await expect(page.getByText(label, { exact: false }).first()).toBeVisible();
     }

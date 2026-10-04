@@ -17,12 +17,12 @@ import {
   type Tier,
   type TierGrid,
 } from '@fernleaf/shared';
-import type { PriceTier } from '@prisma/client';
 import type { z } from 'zod';
 import { Can } from '../auth/auth.guard.js';
 import { PrismaService } from '../prisma.service.js';
 import { ZodPipe } from '../zod.pipe.js';
 import { pricesByTier, resolvePrice, type TierRule } from './price-rules.js';
+import { PricingService } from './pricing.service.js';
 
 type TierBody = z.output<typeof tierSchema>;
 type Priced = {
@@ -32,11 +32,6 @@ type Priced = {
   costPrice: number;
   prices: { tierId: number; price: number }[];
 };
-
-const toRule = (tier: PriceTier): TierRule => ({
-  ...tier,
-  factor: tier.factor?.toString() ?? null,
-});
 
 const gridRow = (tier: TierRule, item: Priced): GridRow => {
   const typed = pricesByTier(item.prices);
@@ -52,22 +47,15 @@ const gridRow = (tier: TierRule, item: Priced): GridRow => {
 
 @Controller('tiers')
 export class PricingController {
-  constructor(private readonly db: PrismaService) {}
+  constructor(
+    private readonly db: PrismaService,
+    private readonly pricing: PricingService,
+  ) {}
 
   @Get()
   @Can('catalogue.view')
-  async tiers(): Promise<Tier[]> {
-    const [tiers, settings, dishes] = await Promise.all([
-      this.db.priceTier.findMany({ orderBy: { id: 'asc' } }),
-      this.db.settings.findUniqueOrThrow({ where: { id: 1 } }),
-      this.db.dish.findMany({ where: { active: true }, include: { prices: true } }),
-    ]);
-    return tiers.map((tier) => ({
-      ...tier,
-      factor: tier.factor ? Number(tier.factor) : null,
-      isDefault: tier.id === settings.defaultTierId,
-      missingDishes: dishes.filter((dish) => gridRow(toRule(tier), dish).price === null).length,
-    }));
+  tiers(): Promise<Tier[]> {
+    return this.pricing.tiers();
   }
 
   // The whole tier at once: every dish and option with its cost, typed price
@@ -156,7 +144,7 @@ export class PricingController {
     };
   }
 
-  // One level of derivation only (D13): the base must be a typed-in tier,
+  // One level of derivation only: the base must be a typed-in tier,
   // and a tier others derive from must stay typed-in. No chains, no cycles.
   private async checkBase(id: number | null, input: TierBody) {
     if (input.base === 'TIER') {

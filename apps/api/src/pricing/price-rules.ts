@@ -45,7 +45,7 @@ export const pricesByTier = (rows: { tierId: number; price: number }[]) =>
   new Map(rows.map((row) => [row.tierId, row.price]));
 
 /**
- * A portion size's extra charge on a tier (D75). It's entered as the default
+ * A portion size's extra charge on a tier. It's entered as the default
  * tier's price and scales by the same proportion as the option's own price:
  * if paneer is 10% cheaper on a tier, so is its Large extra. Rounded up to
  * 5 paise like every derived price. With no default price to compare with,

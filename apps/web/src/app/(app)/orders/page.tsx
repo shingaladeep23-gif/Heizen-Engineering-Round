@@ -56,6 +56,8 @@ function RunCutoff({ onClose }: { onClose: () => void }) {
         <Alert color="green">
           Cut-off was {formatDateTime(run.data.cutoffAt)}. {run.data.confirmed} confirmed,{' '}
           {run.data.cancelled} drafts cancelled.
+          {run.data.confirmed + run.data.cancelled === 0 &&
+            ' Nothing was left to do: the automatic run (every minute) had already processed this date.'}
         </Alert>
       )}
       <Button variant="subtle" onClick={onClose}>

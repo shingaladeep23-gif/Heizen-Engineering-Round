@@ -43,7 +43,7 @@ export class CatalogueController {
       'packaging-types': this.db.packagingType,
       'portion-sizes': this.db.portionSize,
     };
-    // ponytail: the Prisma delegates have different generated types; this
+    // The five Prisma delegates have different generated types; this
     // narrows them to the few calls we make.
     return delegates[kind] as unknown as {
       findMany(args: object): Promise<{ id: number; name: string }[]>;

@@ -41,8 +41,9 @@ export function AdminDashboard() {
             )}
             {tiersMissingPrices.map((t) => (
               <Text key={t.name} size="sm">
-                {t.missing} active dish(es) have no price on {t.name}, so its companies can&apos;t
-                see them. <Link href="/tiers">Price tiers</Link>
+                {t.missing} active dish(es) can&apos;t be ordered on {t.name} (a missing price on the
+                dish or on every option of a required choice), so its companies don&apos;t see
+                them. <Link href="/tiers">Price tiers</Link>
               </Text>
             ))}
           </Stack>

@@ -168,7 +168,7 @@ model OptionGroupSize {
 
 // The sizes an option comes in, each with an extra charge on top of the
 // option's own price. The charge is the default tier's price; other tiers
-// scale it by the same proportion as the option's price (D75).
+// scale it by the same proportion as the option's price.
 model OptionSize {
   optionId    Int
   sizeId      Int
@@ -368,7 +368,7 @@ model Order {
   deliveredAt      DateTime?
   deliveredOnTime  Boolean?
   deliveryNote     String?
-  deliveryPhoto    String? // ponytail: small JPEG data URL in the row; move to object storage if photos grow
+  deliveryPhoto    String? // small JPEG data URL; would move to object storage if photos grow
 
   invoiceId Int? // at most one invoice, enforced by being a single column
   invoice   Invoice? @relation(fields: [invoiceId], references: [id])

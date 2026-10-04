@@ -75,7 +75,7 @@ test.describe('pricing', () => {
     // Read the current count, since other tests may add dishes.
     const missing = page
       .locator('.mantine-Card-root', { hasText: 'Startup' })
-      .getByText(/dishes without a price/);
+      .getByText(/dishes can.t be ordered/);
     await expect(missing).toBeVisible();
     const before = Number((await missing.textContent())?.match(/\d+/)?.[0]);
     expect(before).toBeGreaterThanOrEqual(6);
@@ -88,12 +88,12 @@ test.describe('pricing', () => {
     const price = page.getByLabel('Jain Veg Pulao price');
     await price.fill('150');
     await price.press('Enter');
-    await expect(missing).toHaveText(`${before - 1} dishes without a price`);
+    await expect(missing).toHaveText(`${before - 1} dishes can't be ordered`);
 
     // Put it back.
     await page.getByLabel('Only show missing').uncheck();
     await page.getByRole('button', { name: 'Clear Jain Veg Pulao price' }).click();
-    await expect(missing).toHaveText(`${before} dishes without a price`);
+    await expect(missing).toHaveText(`${before} dishes can't be ordered`);
   });
 
   test('derived tiers explain their rule and show formula prices', async ({ page }) => {

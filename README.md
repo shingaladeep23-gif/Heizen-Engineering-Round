@@ -239,9 +239,9 @@ Everything is grouped by **delivery date in IST**, because that's how the kitche
 | Overdue | Unpaid, and created more than **14 days** ago. That's my assumed payment term; the spec doesn't give one. |
 | Paid in the last 30 days | Sum of totals of invoices marked paid in the last 30 days, by paid date. |
 | Booked for the next 7 days | Totals of CONFIRMED and PLACED orders delivering tomorrow to 7 days out. Drafts aren't counted, because they're not commitments. |
-| Last 7 days | Delivery dates from 7 days ago to yesterday (today isn't finished). **Orders** and **revenue**: billable orders and their totals. **On time**: deliveries marked on time ÷ deliveries. Orders with no delivery record don't count either way, and it shows "No data" if there were none. **Cancelled / rejected**: counted separately, including drafts cancelled at cut-off. |
-| Most ordered | Top 5 dishes by portions (line quantities) on billable orders delivered in the last 7 days. |
-| Needs a decision | Only shows when something is wrong: late drops today, overdue invoices, and price tiers where active dishes have no price (so those companies can't see them). |
+| Last 7 days | Delivery dates from 7 days ago to yesterday (today isn't finished). **Orders** and **revenue**: billable orders and their totals, less any short-delivery credits on those orders. **On time**: deliveries marked on time ÷ deliveries. Orders with no delivery record don't count either way, and it shows "No data" if there were none. **Cancelled / rejected**: counted separately, including drafts cancelled at cut-off. |
+| Most ordered | Top 5 dishes by portions (line quantities) on billable orders delivered in the last 7 days. Counted by dish, so a renamed dish isn't split in two. |
+| Needs a decision | Only shows when something is wrong: late drops today, overdue invoices, and price tiers where active dishes can't be ordered: no price on the dish, or no priced option left in one of its required choices (the same rule as the menu, and the same count as the Price tiers page). |
 
 Not shown, on purpose: charts (a sentence like "86 of 107 on time" says more than a line), margins (cost prices are rough estimates typed in by hand, so a margin figure would look more precise than it is), and per-employee rankings (nobody here needs them).
 
@@ -316,7 +316,7 @@ I did the [Must] items properly first and went over them again with tests. With 
 
 | Requirement | My interpretation |
 |---|---|
-| Currency and "round up to the next 5 cents" | INR; round up to the next 5 paise. |
+| Currency and "round up to the next 5 cents" | INR; round up to the next 5 paise, so the spec's own example (2.11 → 2.15) holds exactly. A real Indian kitchen would probably round to whole rupees; that's a one-number change in `applyFactor`, but I kept the rule as written rather than guess. |
 | Time zone | IST for the kitchen, cut-offs, delivery dates and "today". |
 | Who uses "Rejected", and when | Only an admin, on a placed or confirmed order the kitchen hasn't started, with a reason. Not billable. |
 | What happens to an invoiced order that changes | Credits on the next invoice; invoices never change (see above). |
@@ -344,6 +344,10 @@ I did the [Must] items properly first and went over them again with tests. With 
 | Portions in the kitchen | The same option in another size is another combination, so another prep unit ("2 × paneer (Large)", "1 × paneer (Regular)"). |
 | Credits ("a delivered order that turns out short") | Only on delivered orders. Before delivery nothing can be short, and cancelling or rejecting covers an order that won't go ahead. |
 | Overdue invoices | Unpaid for more than 14 days. |
+| Moving an employee who has open orders | Refused until their drafts and placed orders are settled (cancelled, or confirmed at the cut-off). Those orders were made with the old company's address, prices and calendar and would be billed to it. Confirmed orders stay with the company the employee was in when they ordered. |
+| Editing an order before it's confirmed | It's re-priced at today's prices, like placing it fresh: nothing is owed until confirmation. Once confirmed, the lines (and so the prices) are frozen. |
+| Two drivers on one drop | An admin moving an order into another drop can leave the drop with two drivers. It can't go out for delivery until dispatch picks one driver for the whole drop. |
+| Adding a holiday or a day off later | Refused if orders (draft, placed or confirmed) are already booked for a day it would close, kitchen-wide or for that company, naming the days. Changing the cut-off only affects dates that haven't been processed yet. |
 | "Lists are paginated on the server" | The order list, which grows without limit, is paginated on the server (20 per page) with server-side search and filters. Reference lists (dishes, options, tiers, companies, staff) are small and loaded whole. A company's "not invoiced yet" list is bounded by its billing cycle, and staff tick items across the whole list to build an invoice, so it isn't split into pages. |
 
 ---
@@ -425,7 +429,7 @@ Running it found two real problems that local tests couldn't: transactions timin
 
 **The live checks clean up after themselves.** Everything they create is marked as test data ("Fernleaf QA ..." companies on `fernleaf-qa.in`, and "QA" catalogue items, tiers and staff). Before and after each live run, `e2e/qa-cleanup.ts` deletes exactly those rows in one transaction, so reviewers only ever see the demo data. That needs the database URL (`QA_DATABASE_URL`), and a live run refuses to start without it. It's a test harness talking to the database, not a feature of the app: the app itself never hard-deletes orders or dishes.
 
-A local **pre-commit hook** runs lint, type-check, unit tests and Playwright, and blocks the commit if anything fails. Every commit after the first few setup commits went through it. The same Playwright suite runs against the live site with `BASE_URL=...`; local tests that would change demo data skip themselves there, and the two live-only files, `screens.spec.ts` and `concurrency.spec.ts` run instead.
+A local **pre-commit hook** runs lint, type-check, unit tests and Playwright, and blocks the commit if anything fails. Every commit after the first few setup commits went through it. The same Playwright suite runs against the live site with `BASE_URL=...`; local tests that would change demo data skip themselves there. `screens.spec.ts` and `concurrency.spec.ts` run in both places, and the two live-only files (`production.spec.ts` and `production-rules.spec.ts`) run only there.
 
 ---
 
@@ -440,7 +444,8 @@ The spec asks for realistic data, including orders for whatever day the review h
   - **future days:** confirmed if their cut-off has passed, otherwise placed, with a few drafts
 - **Every demo order goes through the real rules:** the employee's own menu and the same `buildLines()` the API uses. Demo orders are always priced on the right tier and respect hidden items and required choices.
 - **Weekends:** the demo kitchen works seven days, Orbit Health (a hospital) orders every day and Bluepeak Monday to Saturday, so a weekend review still has deliveries.
-- **History stays realistic:** with no one working the boards over the two-week review, unfinished orders from past days are marked delivered overnight. This is a demo convenience, not something the real product would do, which is why it only runs in demo mode.
+- **History stays realistic:** with no one working the boards over the two-week review, unfinished demo orders are marked delivered, as if the team had worked through them: earlier days, and today's drops once they're two hours past their delivery time (otherwise every board is red by the afternoon). Only the five demo companies' orders, and each only if it's still confirmed at that moment, so anything a reviewer creates or cancels is never touched. This is a demo convenience, not something the real product would do, which is why it only runs in demo mode.
+- **Lunch only:** every demo company takes lunch (12:00 to 13:30), so demo orders don't include breakfast dishes.
 
 Things in the demo data worth looking at:
 - portions: the Build-your-own Protein Bowl sells its protein in Regular or Large (Large is ₹20–50 more, depending on the protein); some demo orders are Large

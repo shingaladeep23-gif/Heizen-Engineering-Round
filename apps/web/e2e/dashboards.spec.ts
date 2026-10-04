@@ -8,7 +8,7 @@ test('the admin dashboard shows today, money and the last week', async ({ page }
   await expect(page.getByText('Not invoiced yet')).toBeVisible();
   await expect(page.getByText(/^Last 7 days/)).toBeVisible();
   // The Startup tier is missing prices in the seed data, so it's flagged.
-  await expect(page.getByText(/have no price on Startup/)).toBeVisible();
+  await expect(page.getByText(/can.t be ordered on Startup/)).toBeVisible();
 });
 
 test('the kitchen dashboard has a prep list and stations', async ({ page }) => {

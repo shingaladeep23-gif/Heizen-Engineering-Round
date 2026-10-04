@@ -42,6 +42,12 @@ describe('stepProblem', () => {
     expect(stepProblem([noDriver], 'out')).toBe('Assign a driver first');
     expect(stepProblem([READY], 'out')).toBeNull();
   });
+
+  it('needs one driver for the whole drop', () => {
+    const other = { ...READY, driverId: (READY.driverId ?? 0) + 1 };
+    expect(stepProblem([READY, other], 'out')).toMatch(/different drivers/);
+    expect(stepProblem([READY, READY], 'out')).toBeNull();
+  });
 });
 
 describe('deliveredOnTime', () => {
