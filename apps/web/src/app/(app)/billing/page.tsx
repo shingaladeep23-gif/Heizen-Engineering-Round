@@ -4,6 +4,8 @@ import { formatMoney, type BillingCompany } from '@fernleaf/shared';
 import { Stack, Table, Text, Title } from '@mantine/core';
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
+import { RowLink } from '@/components/RowLink';
+import { Waiting } from '@/components/Waiting';
 import { api } from '@/lib/api';
 
 export default function BillingPage() {
@@ -18,13 +20,10 @@ export default function BillingPage() {
       <div>
         <Title order={2}>Billing</Title>
         <Text size="sm" c="dimmed">
-          What each company owes. Open a company to put its confirmed orders on an invoice.
+          What each company owes. Employees never pay: every confirmed order is billed to their
+          company. Open a company to put what isn’t billed yet on an invoice.
         </Text>
       </div>
-      <Text size="sm" c="dimmed">
-        Employees never pay: every confirmed order is billed to their company. Pick a company to
-        invoice what isn&apos;t billed yet.
-      </Text>
       <Table highlightOnHover>
         <Table.Thead>
           <Table.Tr>
@@ -42,7 +41,9 @@ export default function BillingPage() {
               style={{ cursor: 'pointer' }}
               onClick={() => router.push(`/billing/${c.id}`)}
             >
-              <Table.Td>{c.name}</Table.Td>
+              <Table.Td>
+                <RowLink href={`/billing/${c.id}`}>{c.name}</RowLink>
+              </Table.Td>
               <Table.Td ta="right">{c.unbilledOrders}</Table.Td>
               <Table.Td ta="right">{formatMoney(c.unbilledAmount)}</Table.Td>
               <Table.Td ta="right">{c.unpaidInvoices}</Table.Td>
@@ -51,6 +52,7 @@ export default function BillingPage() {
           ))}
         </Table.Tbody>
       </Table>
+      {!companies.data && <Waiting error={companies.error} />}
     </Stack>
   );
 }

@@ -21,6 +21,8 @@ import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
+import { RowLink } from '@/components/RowLink';
+import { Waiting } from '@/components/Waiting';
 import { api, useAction, useCan } from '@/lib/api';
 import { formatClock, formatDay, formatDateTime, STATUS_COLORS, statusLabel } from '@/lib/format';
 
@@ -193,7 +195,9 @@ export default function OrdersPage() {
               style={{ cursor: 'pointer' }}
               onClick={() => router.push(`/orders/${order.id}`)}
             >
-              <Table.Td>#{order.id}</Table.Td>
+              <Table.Td>
+                <RowLink href={`/orders/${order.id}`}>#{order.id}</RowLink>
+              </Table.Td>
               <Table.Td>
                 {formatDay(order.deliveryDate)}, {formatClock(order.deliveryTime)}
               </Table.Td>
@@ -210,6 +214,7 @@ export default function OrdersPage() {
           ))}
         </Table.Tbody>
       </Table>
+      {!orders.data && <Waiting error={orders.error} />}
       {orders.data?.items.length === 0 && <Text c="dimmed">No orders match these filters.</Text>}
       {orders.data && orders.data.total > orders.data.pageSize && (
         <Group justify="space-between">

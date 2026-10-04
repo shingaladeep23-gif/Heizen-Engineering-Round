@@ -5,6 +5,8 @@ import { Badge, Button, Group, Image, Table, Title, Text } from '@mantine/core';
 import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { RowLink } from '@/components/RowLink';
+import { Waiting } from '@/components/Waiting';
 import { api, useCan } from '@/lib/api';
 
 type DishRow = {
@@ -65,7 +67,9 @@ export default function DishesPage() {
                 )}
               </Table.Td>
               <Table.Td>{dish.sku}</Table.Td>
-              <Table.Td>{dish.name}</Table.Td>
+              <Table.Td>
+                <RowLink href={`/dishes/${dish.id}`}>{dish.name}</RowLink>
+              </Table.Td>
               <Table.Td>{dish.station?.name ?? 'Unassigned'}</Table.Td>
               <Table.Td>{dish.temperature === 'HOT' ? 'Hot' : 'Cold'}</Table.Td>
               <Table.Td>{formatMoney(dish.costPrice)}</Table.Td>
@@ -78,6 +82,7 @@ export default function DishesPage() {
           ))}
         </Table.Tbody>
       </Table>
+      {!dishes.data && <Waiting error={dishes.error} />}
     </>
   );
 }

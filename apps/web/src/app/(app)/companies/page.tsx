@@ -5,6 +5,8 @@ import { Button, Group, Table, Title, Text } from '@mantine/core';
 import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { RowLink } from '@/components/RowLink';
+import { Waiting } from '@/components/Waiting';
 import { api, useCan } from '@/lib/api';
 
 export default function CompaniesPage() {
@@ -47,7 +49,9 @@ export default function CompaniesPage() {
               style={{ cursor: 'pointer' }}
               onClick={() => router.push(`/companies/${c.id}`)}
             >
-              <Table.Td>{c.name}</Table.Td>
+              <Table.Td>
+                <RowLink href={`/companies/${c.id}`}>{c.name}</RowLink>
+              </Table.Td>
               <Table.Td>{c.domains.map((d) => `@${d}`).join(', ')}</Table.Td>
               <Table.Td>{c.tier ?? 'Default tier'}</Table.Td>
               <Table.Td ta="right">{c.employees}</Table.Td>
@@ -55,6 +59,7 @@ export default function CompaniesPage() {
           ))}
         </Table.Tbody>
       </Table>
+      {!companies.data && <Waiting error={companies.error} />}
     </>
   );
 }
