@@ -682,6 +682,35 @@ test.describe('odd input never breaks anything', () => {
       }
       expect((await ctx.post(`/api/kitchen/units/${id}/done`)).status()).toBe(404);
     }
+    // A required id that's left out is named, not a crash.
+    for (const path of ['/api/orders/delivery-info?date=2027-01-05', '/api/menu/preview']) {
+      const res = await ctx.get(path);
+      expect(res.status(), path).toBe(400);
+      expect((await res.json()).message).toBe('employeeId is required');
+    }
+  });
+
+  test('dispatch reads a company without asking for the catalogue it can’t see', async ({
+    page,
+  }) => {
+    const ctx = await as('dispatch@test.com');
+    const companies = (await (await ctx.get('/api/companies')).json()) as {
+      id: number;
+      name: string;
+    }[];
+    const race = companies.find((c) => c.name === COMPANY);
+    test.skip(!race, 'the race company is made by the tests above');
+    const denied: string[] = [];
+    page.on('response', (r) => r.status() === 403 && denied.push(r.url()));
+    await page.goto(`${BASE}/login`);
+    await page.getByLabel('Email').fill('dispatch@test.com');
+    await page.getByLabel('Password', { exact: true }).fill(PASSWORD);
+    await page.getByRole('button', { name: 'Sign in' }).click();
+    await page.waitForURL(/dashboard/);
+    await page.goto(`${BASE}/companies/${race!.id}`);
+    await expect(page.getByLabel('Company name')).toHaveValue(race!.name);
+    await expect(page.getByText('Menu and price')).toHaveCount(0);
+    expect(denied).toEqual([]);
   });
 
   test('numbers too big are refused with a message a person can act on', async () => {

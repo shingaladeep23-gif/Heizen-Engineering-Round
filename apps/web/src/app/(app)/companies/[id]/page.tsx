@@ -166,12 +166,23 @@ function CompanyForm({
   const router = useRouter();
   const canEdit = useCan('companies.manage');
   const lists = useLists();
-  const tiers = useQuery({ queryKey: ['tiers'], queryFn: () => api<Tier[]>('/tiers') });
+  // Dispatch can read companies but not the catalogue, so for them the menu
+  // and price section isn't loaded or shown.
+  const canSeeCatalogue = useCan('catalogue.view');
+  const tiers = useQuery({
+    queryKey: ['tiers'],
+    queryFn: () => api<Tier[]>('/tiers'),
+    enabled: canSeeCatalogue,
+  });
   const drivers = useQuery({
     queryKey: ['drivers'],
     queryFn: () => api<{ id: number; name: string }[]>('/dispatch/drivers'),
   });
-  const menu = useQuery({ queryKey: ['menu'], queryFn: () => api<Category[]>('/menu/categories') });
+  const menu = useQuery({
+    queryKey: ['menu'],
+    queryFn: () => api<Category[]>('/menu/categories'),
+    enabled: canSeeCatalogue,
+  });
   const form = useForm<Form>({ initialValues: initial });
   const [editing, setEditing] = useState<Employee | 'new' | null>(null);
   const [importing, setImporting] = useState(false);
@@ -371,34 +382,36 @@ function CompanyForm({
               />
             </Card>
 
-            <Card withBorder>
-              <Title order={4} mb="xs">
-                Menu and price
-              </Title>
-              <SimpleGrid cols={{ base: 1, sm: 3 }}>
-                <Select
-                  label="Price tier"
-                  placeholder="Default tier"
-                  clearable
-                  data={options(tiers.data)}
-                  value={asValue(v.priceTierId)}
-                  onChange={(val) => form.setFieldValue('priceTierId', asId(val))}
-                />
-                <MultiSelect
-                  label="Hidden categories"
-                  data={options(menu.data)}
-                  value={v.hiddenCategoryIds.map(String)}
-                  onChange={(val) => form.setFieldValue('hiddenCategoryIds', val.map(Number))}
-                />
-                <MultiSelect
-                  label="Hidden dishes"
-                  searchable
-                  data={items}
-                  value={v.hiddenItemIds.map(String)}
-                  onChange={(val) => form.setFieldValue('hiddenItemIds', val.map(Number))}
-                />
-              </SimpleGrid>
-            </Card>
+            {canSeeCatalogue && (
+              <Card withBorder>
+                <Title order={4} mb="xs">
+                  Menu and price
+                </Title>
+                <SimpleGrid cols={{ base: 1, sm: 3 }}>
+                  <Select
+                    label="Price tier"
+                    placeholder="Default tier"
+                    clearable
+                    data={options(tiers.data)}
+                    value={asValue(v.priceTierId)}
+                    onChange={(val) => form.setFieldValue('priceTierId', asId(val))}
+                  />
+                  <MultiSelect
+                    label="Hidden categories"
+                    data={options(menu.data)}
+                    value={v.hiddenCategoryIds.map(String)}
+                    onChange={(val) => form.setFieldValue('hiddenCategoryIds', val.map(Number))}
+                  />
+                  <MultiSelect
+                    label="Hidden dishes"
+                    searchable
+                    data={items}
+                    value={v.hiddenItemIds.map(String)}
+                    onChange={(val) => form.setFieldValue('hiddenItemIds', val.map(Number))}
+                  />
+                </SimpleGrid>
+              </Card>
+            )}
           </Stack>
         </fieldset>
       </form>

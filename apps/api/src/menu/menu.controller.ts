@@ -79,7 +79,7 @@ export class MenuController {
   @Can('companies.view')
   preview(
     @Query('employeeId', IdPipe) employeeId: number,
-    @Query('categoryId', IdPipe) categoryId?: number,
+    @Query('categoryId', new IdPipe(true)) categoryId?: number,
     @Query('allSecret') allSecret?: string,
   ) {
     return this.menu.menuFor(employeeId, { openId: categoryId, all: allSecret === 'true' });
